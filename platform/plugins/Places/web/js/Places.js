@@ -32,7 +32,15 @@ var Places = Q.Places = Q.plugins.Places = {
 	 *   Q.Places.countries and Q.Places.countries is accessible
 	 */
 	loadCountries: function (callback) {
-		Q.addScript('plugins/Places/js/lib/countries.js', function () {
+		this.loadCountries(callback, null);
+	},
+
+	loadCountries: function (callback, language) {
+		var cl = 'plugins/Places/js/lib/countries.js';
+		if(language){
+			cl = 'plugins/Places/js/lib/countries/'+language+'.js';
+		}
+		Q.addScript(cl, function () {
 			var pc = Places.countries;
 			var cbc = Places.countriesByCode = {};
 			for (var i=0, l = Places.countries.length; i < l; ++i) {
