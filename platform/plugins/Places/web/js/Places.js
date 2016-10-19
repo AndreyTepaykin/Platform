@@ -31,13 +31,9 @@ var Places = Q.Places = Q.plugins.Places = {
 	 * @param {Function} callback Once the callback is called, 
 	 *   Q.Places.countries and Q.Places.countries is accessible
 	 */
-	loadCountries: function (callback) {
-		this.loadCountries(callback, null);
-	},
-
 	loadCountries: function (callback, language) {
 		var cl = 'plugins/Places/js/lib/countries.js';
-		if(language){
+		if (language) {
 			cl = 'plugins/Places/js/lib/countries/'+language+'.js';
 		}
 		Q.addScript(cl, function () {
