@@ -257,7 +257,7 @@ class Q_Request
 	static function filename()
 	{
 		$url = Q_Request::url();
-		$ret = Q::event("Q/Request/filename", compact('url'), 'before');
+		$ret = Q::event("Q/request/filename", compact('url'), 'before');
 		if (isset($ret)) {
 			return $ret;
 		}
@@ -463,7 +463,7 @@ class Q_Request
 		if (preg_match('/tablet|ipad/i', $useragent)) {
 			return true;
 		}
-		if (!preg_match('/mobi/i', $useragent)) {
+		if (self::isTouchscreen() and !preg_match('/mobi/i', $useragent)) {
 			return true;
 		}
 		return false;
@@ -642,8 +642,11 @@ class Q_Request
 		if (!isset($_SERVER['HTTP_USER_AGENT'])) {
 			return null;
 		}
-		$useragent = $_SERVER['HTTP_USER_AGENT'];
 		$platform = self::platform();
+		$useragent = $_SERVER['HTTP_USER_AGENT'];
+		$useragent = 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.10 (intrepid) Firefox/3.0.7';
+		$platform = 'linux';
+		$len = strlen($useragent);
 		switch ($platform) {
 			case 'ios':
 				$index = strpos($useragent, 'OS ');
@@ -656,6 +659,24 @@ class Q_Request
 				if ($index === false) return null;
 				return substr($useragent, $index + 8, 3);
 				break;
+			case 'mac':
+			case 'windows':
+			case 'linux':
+				$find = array(
+					'mac' => 'Macintosh',
+					'windows' => 'Windows',
+					'linux' => 'Linux'
+				);
+				$index = strpos($useragent, $find[$platform]);
+				if ($index === false) return null;
+				$paren = strpos($useragent, ')', $index + 1);
+				$ur = strrev($useragent);
+			    $space = $len - strpos($ur, ' ', $len - $paren);
+			    $colon = $len - strpos($ur, ':', $len - $paren);
+				$max = ($space !== false and $space > $colon) ? $space : $colon;
+				if ($max === false) return null;
+				$ver = substr($useragent, $max, $paren - $max);
+				return str_replace('_', '.', $ver);
 			default:
 				return null;
 				break;
@@ -720,22 +741,23 @@ class Q_Request
 	}
 	
 	/**
+	 * Used to find out whether a given mime type is accepted by the client
 	 * @method accepts
 	 * @static
 	 * @return {boolean}
 	 */
-	static function accepts($mime_type)
+	static function accepts($mimeType)
 	{
 		/**
 		 * @event Q/request/accepts {before}
-		 * @param {string} mime_type
+		 * @param {string} mimeType
 		 * @return {boolean}
 		 */
-		$ret = Q::event('Q/request/accepts', compact('mime_type'), 'before');
+		$ret = Q::event('Q/request/accepts', compact('mimeType'), 'before');
 		if (isset($ret)) {
 			return $ret;
 		}
-		$mt_parts = explode('/', $mime_type);
+		$mt_parts = explode('/', $mimeType);
 		
 		$accept = array();
 		if (!isset($_SERVER['HTTP_ACCEPT'])) {
@@ -756,6 +778,46 @@ class Q_Request
 			}
 		}
 		return false;
+	}
+	
+	/**
+	 * Used to find out what languages are accepted by the user agent
+	 * @method accepts
+	 * @static
+	 * @return {array} returns array of array("en", "US", 0.8) entries
+	 */
+	static function languages()
+	{
+		/**
+		 * @event Q/request/languages {before}
+		 * @return {boolean}
+		 */
+		$ret = Q::event('Q/request/languages', array(), 'before');
+		if (isset($ret)) {
+			return $ret;
+		}
+		$available = Q_Config::get('Q', 'web', 'languages', array('en' => 1));
+		$header = Q::ifset($_SERVER, 'HTTP_ACCEPT_LANGUAGE', 'en');
+		$parts = explode(',', $header);
+		$result = array();
+		foreach ($parts as $p) {
+			$parts2 = explode(';', $p);
+			if (!$parts2) {
+				continue;
+			}
+			$parts3 = explode('-', $parts2[0]);
+			$language = strtolower($parts3[0]);
+			$country = !empty($parts3[1]) ? strtoupper($parts3[1]) : null;
+			if (empty($available[$language])) {
+				continue;
+			}
+			$quality = !empty($parts2[1]) ? substr($parts2[1], 2) : 1;
+			$result[] = array($language, $country, $quality);
+		}
+		if (empty($result)) {
+			return array("en", "US", 1);
+		}
+		return $result;
 	}
 	
 	/**
@@ -809,6 +871,21 @@ class Q_Request
 			}
 			return Q_Valid::nonce(true);
 		}
+	}
+	
+	/**
+	 * Some standard info to be stored in sessions, devices, etc.
+	 * @return {array}
+	 */
+	static function userAgentInfo()
+	{
+		$info = array(
+			'formFactor' => Q_Request::formFactor(),
+			'platform' => Q_Request::platform(),
+			'version' => Q_Request::OSVersion()
+		);
+		$fields = Q_Config::get('Q', 'session', 'userAgentInfo', array());
+		return Q::take($info, $fields);
 	}
 	
 	/**
