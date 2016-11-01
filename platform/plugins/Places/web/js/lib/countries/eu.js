@@ -1,4 +1,5 @@
-Q.Places.countries = [["Afghanistan","AF"],
+Q.Places.countries = [
+    ["Afghanistan","AF"],
     ["Åland Uharteak","AX"],
     ["Albania","AL"],
     ["Algeria","DZ"],
@@ -246,7 +247,8 @@ Q.Places.countries = [["Afghanistan","AF"],
     ["Mendebaldeko Sahara","EH"],
     ["Yemen","YE"],
     ["Zambia","ZM"],
-    ["Zimbabwe","ZW"]].
+    ["Zimbabwe","ZW"]
+];
 
     Q.Places.countryLookupByCode = {
     "AF": "4",

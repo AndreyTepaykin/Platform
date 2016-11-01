@@ -1,4 +1,5 @@
-Q.Places.countries = [["L'Afganistan","AF"],
+Q.Places.countries = [
+    ["L'Afganistan","AF"],
     ["Illes Åland","AX"],
     ["Albània","AL"],
     ["Algèria","DZ"],

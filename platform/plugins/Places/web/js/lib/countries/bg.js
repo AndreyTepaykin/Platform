@@ -248,7 +248,7 @@ Q.Places.countries = [
     [ "Емен", "YE"],
     [ "Замбія", "ЗМ"],
     [ "Зімбабвэ", "ZW"]
-].
+];
 
     Q.Places.countryLookupByCode = {
     "AF": "4",
