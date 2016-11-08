@@ -371,6 +371,8 @@ Q.Tool.define({
 	"Streams/access"       : "plugins/Streams/js/tools/access.js",
 	"Streams/subscription" : "plugins/Streams/js/tools/subscription.js",
 	"Streams/interests"    : "plugins/Streams/js/tools/interests.js",
+	"Streams/lookup"       : "plugins/Streams/js/tools/lookup.js",
+	"Streams/relate"       : "plugins/Streams/js/tools/relate.js",
 	"Streams/related"      : "plugins/Streams/js/tools/related.js",
 	"Streams/inplace"      : "plugins/Streams/js/tools/inplace.js",
 	"Streams/html"         : "plugins/Streams/js/tools/html.js",
@@ -1420,25 +1422,6 @@ Sp.iconUrl = function _Stream_prototype_iconUrl (size) {
  */
 Sp.fileUrl = function() {
 	var url = this.get('Q.file.url') || this.get('file.url');
-	return url.interpolate({
-		"baseUrl": Q.info.baseUrl
-	});
-};
-
-/**
- * Calculate the url of a stream's audio file
- * @method suffix
- * @return {String} the url
- */
-Sp.audioUrl = function(suffix) {
-	var url = this.get('Q.audio.url') || this.get('audio.url');
-	if (!suffix && suffix !== '') {
-		suffix = 'audio.mp3';
-	}
-	var l = url.length;
-	if (url[l-2] !== '.' && url[l-3] !== '.' && url[l-4] !== '.') {
-		url += ('/' + suffix);
-	}
 	return url.interpolate({
 		"baseUrl": Q.info.baseUrl
 	});
