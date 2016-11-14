@@ -599,6 +599,9 @@ Elp.copyComputedStyle = function(src) {
 				if ( i == "font" ) {
 					this.style.fontSize = s.fontSize;
 				}
+				if ( i == "backgroundRepeatX" || i == "backgroundRepeatY" ) {
+					this.style.backgroundRepeat = s.backgroundRepeat;
+				}
 			} catch (e) {}
 		}
 	}
@@ -3190,22 +3193,35 @@ Q.getter.THROTTLING = 3;
  * @return {Function} a wrapper around the function that returns a promise, extended with the original function's return value if it's an object
  */
 Q.promisify = function (getter, useSecondArgument) {
-	return function _promisifier() {
+	function _promisifier() {
 		if (!Q.Promise) {
 			return getter.apply(this, args);
 		}
-		var args = [], resolve, reject;
+		var args = [], resolve, reject, found = false;
 		for (var i=0, l=arguments.length; i<l; ++i) {
 			var ai = arguments[i];
-			args.push(typeof ai !== 'function' ? ai : function _promisified(err, second) {
-				if (err) {
-					return reject(err);
+			if (typeof ai === 'function') {
+				found = true;
+				ai = function _promisified(err, second) {
+					if (err) {
+						return reject(err);
+					}
+					try {
+						ai.apply(this, arguments);
+					} catch (e) {
+						err = e;
+					}
+					if (err) {
+						return reject(err);
+					}
+					resolve(useSecondArgument ? second : this);
 				}
-				try {
-					ai.apply(this, arguments);
-				} catch (e) {
-					err = e;
-				}
+			}
+			args.push(ai);
+			break; // only one callback, expect err as first argument
+		}
+		if (!found) {
+			args.push(function _defaultCallback(err, second) {
 				if (err) {
 					return reject(err);
 				}
@@ -3218,6 +3234,7 @@ Q.promisify = function (getter, useSecondArgument) {
 		});
 		return Q.extend(promise, getter.apply(this, args));
 	}
+	return Q.extend(_promisifier, getter);
 };
 
 /**
@@ -5451,10 +5468,15 @@ Q.beforeUnload = function _Q_beforeUnload(notice) {
  * Remove an element from the DOM and try to clean up memory as much as possible
  * @static
  * @method removeElement
- * @param {HTMLElement} element
- * @param {boolean} removeTools
+ * @param {HTMLElement|Array} element, or array of elements, or object of elements
+ * @param {boolean} removeTools whether to properly remove the tools before removing the element
  */
 Q.removeElement = function _Q_removeElement(element, removeTools) {
+	if (Q.isArrayLike(element)) {
+		Q.each(element, function () {
+			Q.removeElement(this, removeTools);
+		});
+	}
 	if (removeTools) {
 		Q.Tool.remove(element);
 	}
@@ -8072,7 +8094,9 @@ function _initTools(toolElement) {
 	var currentEvent = _pendingParentStack[_pendingParentStack.length-1];
 	_pendingParentStack.pop(); // it was pushed during tool activate
 	var currentId = _waitingParentStack.pop();
-	var parentId = _waitingParentStack[_waitingParentStack.length-1];
+	var ba = Q.Tool.beingActivated;
+	var parentId = _waitingParentStack[_waitingParentStack.length-1]
+		|| (ba && ba.id); // if we activated child tools while activating parent
 	
 	_loadToolScript(toolElement,
 	function _initTools_doInit(toolElement, toolFunc, toolName) {
@@ -8104,8 +8128,13 @@ function _initTools(toolElement) {
 			var allInitialized = true;
 			var childIds = _toolsWaitingForInit[parentId];
 			for (var childId in childIds) {
-				for (var childName in Q.Tool.active[childId]) {
-					var c = Q.Tool.active[childId][childName];
+				var a = !Q.Tool.active[childId];
+				if (!a) {
+					allInitialized = false;
+					break;
+				}
+				for (var childName in a) {
+					var c = a[childName];
 					if (!c || !c.initialized) {
 						allInitialized = false;
 						break;

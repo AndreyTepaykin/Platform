@@ -103,6 +103,11 @@
 			"types": [
 				"Places/location", "Places/area", "Places/floor", "Places/column"
 			]
+		},
+		"invites": {
+			"sort": {
+				"areas": ["Places", "sortAreaFilenames"]
+			}
 		}
 	},
 	"Places": {
