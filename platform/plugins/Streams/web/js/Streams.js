@@ -3073,7 +3073,7 @@ Ap.displayName = function _Avatar_prototype_displayName (options, fallback) {
  */
 Ap.iconUrl = function _Avatar_prototype_iconUrl (size) {
 	return Users.iconUrl(this.icon.interpolate({
-		'userId': this.publisherId.splitId()
+		userId: this.publisherId.splitId()
 	}), size);
 };
 
@@ -3330,7 +3330,7 @@ function updateAvatarCache(stream) {
 		var field = sf.name.split('/').pop();
 		var userId = sf.publisherId;
 		cache = Avatar.get.cache;
-		if (item = cache.get([userId])) {
+		if ((item = cache.get([userId])) && item.subject) {
 			item.subject[field] = sf.content;
 			cache.set([userId], 0, item.subject, [null, item.subject]);
 		}

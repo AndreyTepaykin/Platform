@@ -2,17 +2,17 @@
 
 function Streams_0_8_8_Streams_mysql()
 {
-	$app = Q_Config::expect('Q', 'app');
-	$user = Users_User::fetch($app, true);
+	$communityId = Users::communityId();
+	$user = Users_User::fetch($communityId, true);
 	
-	Streams::create($app, $app, 'Streams/resource', array(
+	Streams::create($communityId, $communityId, 'Streams/resource', array(
 		'name' => 'Streams/invitations',
 		'readLevel' => 0,
 		'writeLevel' => 0,
 		'adminLevel' => 0
 	));
 	Streams_Access::insert(array(
-		'publisherId' => $app, 
+		'publisherId' => $communityId, 
 		'streamName' => "Streams/invitations",
 		'ofUserId' => '',
 		'grantedByUserId' => null,

@@ -643,6 +643,22 @@ Elp.scrollingParent = function() {
 };
 
 /**
+ * Call this to make sure scrolling is adjusted properly after contents have changed.
+ * Some browsers, such as Safari on iOS, don't act properly unless this is called.
+ * @method adjustScrolling
+ * @param {Element} element
+ */
+Elp.adjustScrolling = function() {
+	var scrolling = this.style['-webkit-overflow-scrolling'];
+	var element = this;
+	element.style['-webkit-overflow-scrolling'] = (scrolling === 'auto' ? 'touch' : 'auto');
+	setTimeout(function () {
+		element.style['-webkit-overflow-scrolling'] = scrolling;
+	}, 0);
+	return this;
+};
+
+/**
  * Switch places with another element
  * @method swap
  * @param {Element} element
@@ -1723,6 +1739,9 @@ function _getProp (/*Array*/parts, /*Boolean*/create, /*Object*/context){
 	if(!parts.length) return context;
 	while(context && (p = parts[i++]) !== undefined){
 		try {
+			if (p === '*') {
+				p = Q.firstKey(context);
+			}
 			context = (p in context) ? context[p] : (create ? context[p] = {} : undefined);
 		} catch (e) {
 			if (create) {
@@ -10651,6 +10670,7 @@ Q.confirm.options = {
  * @param {Object} [options] An optional hash of options which can include:
  * @param {String} [options.title='Prompt'] to override confirm dialog title.
  * @param {String} [options.placeholder=''] to set a placeholder in the textbox
+ * @param {Number} [options.maxlength=1000] the maximum length of the input
  * @param {String} [options.ok='OK'] to override confirm dialog 'Ok' button label, e.g. 'Yes'.
  * @param {String} [options.cancel='Cancel'] to override confirm dialog 'Cancel' button label, e.g. 'No'.
  * @param {boolean} [options.noClose=true] set to false to show a close button
@@ -10671,7 +10691,10 @@ Q.prompt = function(message, callback, options) {
 		'content': $('<div class="Q_messagebox Q_big_prompt" />').append(
 			$('<p />').html(message),
 			$('<div class="Q_buttons" />').append(
-				$('<input type="text" />').attr('placeholder', o.placeholder), ' ',
+				$('<input type="text" />').attr({
+					'placeholder': o.placeholder,
+					'maxlength': o.maxLength
+				}), ' ',
 				$('<button class="Q_messagebox_done Q_button" />').html(o.ok)
 			)
 		),
@@ -10704,6 +10727,7 @@ Q.prompt.options = {
 	title: 'Prompt',
 	ok: 'OK',
 	placeholder: '',
+	maxlength: 100,
 	noClose: true
 };
 

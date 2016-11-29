@@ -54,8 +54,6 @@ Q.Tool.define("Users/avatar", function Users_avatar_tool(options) {
 	if (!state.userId || !state.reflectChanges) {
 		return;
 	}
-	Streams.Stream.retain(state.userId, 'Streams/user/firstName', tool);
-	Streams.Stream.retain(state.userId, 'Streams/user/lastName', tool);
 	Streams.Stream.onFieldChanged(state.userId, 'Streams/user/icon', 'icon')
 	.set(function (fields, field) {
 		var $img = tool.$('.Users_avatar_icon');
@@ -169,7 +167,7 @@ Q.Tool.define("Users/avatar", function Users_avatar_tool(options) {
 			state.avatar = avatar;
 			if (state.icon) {
 				fields = Q.extend({}, state.templates.icon.fields, {
-					src: Q.url(this.iconUrl(state.icon), null)
+					src: Q.url(avatar.iconUrl(state.icon), null)
 				});
 				Q.Template.render('Users/avatar/icon', fields, 
 				function (err, html) {
