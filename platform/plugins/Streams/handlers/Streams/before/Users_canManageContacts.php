@@ -5,22 +5,33 @@ function Streams_before_Users_canManageContacts($params, &$result)
 	$asUserId = $params['asUserId'];
 	$userId = $params['userId'];
 	$label = $params['label'];
+	$readOnly = $params['readOnly'];
 	$throwIfNotAuthorized = $params['throwIfNotAuthorized'];
-	if ($asUserId === $userId and substr($label, 0, 6) === 'Users/') {
+	if ($asUserId === $userId) {
+		if ($readOnly or substr($label, 0, 6) === 'Users/') {
+			$result = true;
+			return;
+		}
+	}
+	$stream = Streams::fetchOne($asUserId, $userId, 'Streams/contacts');
+	if (!$stream or !$stream->testReadLevel('content')) {
+		return;
+	}
+	if ($readOnly) {
 		$result = true;
 		return;
 	}
-	$stream = Streams::fetchOne($asUserId, $userId, 'Streams/contacts');
-	if ($stream and $stream->testWriteLevel('edit')) {
-		if ($prefixes = $stream->getAttribute('prefixes', null)) {
-			foreach ($prefixes as $prefix) {
-				if (Q::startsWith($label, $prefix)) {
-					$result = true;
-					return;
-				}
-			}
-		} else {
+	if ($label and $stream->testWriteLevel('edit')) {
+		$prefixes = $stream->getAttribute('prefixes', null);
+		if (!isset($prefixes)) {
 			$result = true;
+			return;
+		}
+		foreach ($prefixes as $prefix) {
+			if (Q::startsWith($label, $prefix)) {
+				$result = true;
+				return;
+			}
 		}
 	}
 }

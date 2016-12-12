@@ -394,6 +394,9 @@ Q.Tool.define("Streams/related", function _Streams_related_tool (options) {
 				}
 				preview.state.onRefresh.remove(key);
 			});
+			var key2 = preview.state.onComposer.add(function () {
+				tabs.refresh();
+			});
 		});
 		if (!skipRefresh) {
 			tabs.refresh();
