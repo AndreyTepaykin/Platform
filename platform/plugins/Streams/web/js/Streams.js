@@ -408,7 +408,8 @@ Q.Tool.define({
 	"Streams/default/preview": "plugins/Streams/js/tools/default/preview.js",
 	"Streams/player": function () {
 		// does nothing
-	}
+	},
+	"Streams/audio/preview" : "plugins/Streams/js/tools/audio/preview.js"
 });
 
 /**

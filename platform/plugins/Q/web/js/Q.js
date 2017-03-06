@@ -10988,7 +10988,38 @@ Aup.play = function (from, until, removeAfterPlaying) {
 	Q.handle(Q.Audio.onPlay, this);
 	return t;
 };
+	/**
+	 * @method recorderInit
+	 * Set recorder class
+	 * @param {object} [options] Object with options
+	 * @param {function} [options.onStreamReady] callback onStreamReady - fire when user apply access to microphones
+	 * @param {function} [options.onDataAvailable] callback onDataAvailable - fire when audio stream encoded and redy o use
+	 */
+	Aup.recorderInit = function (options) {
+		var tool = this;
 
+		// load recorder
+		Q.addScript("plugins/Q/js/audioRecorder/recorder.js", function(){
+			//new Recorder({leaveStreamOpen: true, encoderPath: Q.url("plugins/Q/js/audioRecorder/encoderWorker.min.js")}); - ogg format encoder
+			tool.recorder = tool.recorder || new Recorder({leaveStreamOpen: true, encoderPath: Q.url("plugins/Q/js/audioRecorder/recorderWorkerMP3.js")}); // mp3 format encoder
+
+			tool.recorder.addEventListener("streamReady", function(e){
+				if(typeof options.onStreamReady == "function") options.onStreamReady.call();
+			});
+
+			// when error occur with audio stream
+			tool.recorder.addEventListener("streamError", function(e){
+				console.log('Error encountered: ' + e.error.name );
+			});
+
+			tool.recorder.addEventListener("dataAvailable", function(e){
+				if(typeof options.onDataAvailable == "function") options.onDataAvailable.call(e);
+			});
+
+			tool.recorder.initStream();
+		});
+
+	}
 /**
  * @method pause
  * Pauses the audio if it is playing
@@ -11329,7 +11360,8 @@ Q.onJQuery.add(function ($) {
 		"Q/touchscroll": "plugins/Q/js/fn/touchscroll.js",
 		"Q/scrollbarsAutoHide": "plugins/Q/js/fn/scrollbarsAutoHide.js",
 		"Q/sortable": "plugins/Q/js/fn/sortable.js",
-		"Q/validator": "plugins/Q/js/fn/validator.js"
+		"Q/validator": "plugins/Q/js/fn/validator.js",
+		"Q/audio": "plugins/Q/js/fn/audio.js"
 	});
 	
 	Q.onLoad.add(function () {
