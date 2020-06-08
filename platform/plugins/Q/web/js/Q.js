@@ -4097,6 +4097,22 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 Q.Tool.beingActivated = undefined;
 
 /**
+ * Call this to find out if a tool was defined (but maybe not loaded).
+ * 
+ * @static
+ * @method defined
+ * @param {String} toolName the name of the tool
+ * @return {Function|String|undefined} the tool constuctor's constructor function,
+ *    the Javascript file url if not yet loaded, or undefined if not defined
+ */
+Q.Tool.defined = function (toolName) {
+	if (!toolName) {
+		return undefined;
+	}
+	return Q.Tool.constructors[Q.normalize(toolName)];
+};
+
+/**
  * Call this function to define default options for a tool constructor,
  * even if has not been loaded yet. Extends existing options with Q.extend().
  * @static
@@ -5617,11 +5633,12 @@ Q.Page = function (uriString) {
 Q.Page.push = function (url, title) {
 	var prevUrl = location.href;
 	url = Q.url(url);
-	if (url.substr(0, Q.info.baseUrl.length) !== Q.info.baseUrl) {
+	var baseUrl = Q.baseUrl();
+	if (url.startsWith(baseUrl)) {
 		return;
 	}
 	var parts = url.split('#');
-	var path = (url.substr(Q.info.baseUrl.length+1) || '');
+	var path = (url.substr(baseUrl.length+1) || '');
 	if (history.pushState) {
 		history.pushState({}, null, url);
 	} else {
@@ -5643,7 +5660,7 @@ Q.Page.push = function (url, title) {
 	if (typeof title === 'string') {
 		document.title = title;
 	}
-	Q_hashChangeHandler.currentUrl = url.substr(Q.info.baseUrl.length + 1);
+	Q_hashChangeHandler.currentUrl = url.substr(baseUrl.length + 1);
 	Q.info.url = url;
 	Q.handle(Q.Page.onPush, Q, [url, title, prevUrl]);
 };
@@ -5792,8 +5809,9 @@ Q.init = function _Q_init(options) {
 			Q.ensure(root.JSON, Q.libraries.json, _ready);
 		}
 
+		var baseUrl = Q.baseUrl();
 		if (options && options.isLocalFile) {
-			Q.loadUrl(Q.info.baseUrl, {
+			Q.loadUrl(baseUrl, {
 				ignoreHistory: true,
 				skipNonce: true,
 				onActivate: _getJSON,
@@ -5878,14 +5896,15 @@ Q.init = function _Q_init(options) {
  */
 Q.ready = function _Q_ready() {
 	Q.loadNonce(function readyWithNonce() {
+		var baseUrl = Q.baseUrl();
 		_isReady = true;
 		if (Q.info.isLocalFile) {
 			// This is an HTML file loaded from the local filesystem
 			var url = location.hash.queryField('url');
 			if (url === undefined) {
-				Q.handle(Q.info.baseUrl);
+				Q.handle(baseUrl);
 			} else {
-				Q.handle(url.indexOf(Q.info.baseUrl) == -1 ? Q.info.baseUrl+'/'+url : url);
+				Q.handle(url.indexOf(baseUrl) == -1 ? baseUrl+'/'+url : url);
 			}
 			return;
 		}
@@ -5971,7 +5990,8 @@ Q.loadNonce = function _Q_loadNonce(callback, context, args) {
 		Q.handle(callback, context, args);
 		return;
 	}
-	var p1 = Q.info.baseUrl && Q.info.baseUrl.parseUrl();
+	var baseUrl = Q.baseUrl();
+	var p1 = baseUrl && baseUrl.parseUrl();
 	var p2 = location.href.parseUrl();
 	if (!p1 || p1.host !== p2.host || (p1.scheme !== p2.scheme && p2.scheme === 'https')) {
 		Q.handle(callback, context, args); // nonce won't load cross-origin anyway
@@ -6708,9 +6728,10 @@ Q.load = function _Q_load(plugins, callback, options) {
 	if (typeof plugins === 'string') {
 		plugins = plugins.split(' ').map(function (str) { return str.trim(); });
 	}
+	var baseUrl = Q.baseUrl();
 	Q.each(plugins, function (i, plugin) {
 		if (plugin && !Q.plugins[plugin]) {
-			urls.push(Q.info.baseUrl+'/Q/plugins/'+plugin+'/js/'+plugin+'.js');
+			urls.push(baseUrl+'/Q/plugins/'+plugin+'/js/'+plugin+'.js');
 		}
 	});
 	return Q.addScript(urls, callback, options);	
@@ -6723,7 +6744,7 @@ Q.load = function _Q_load(plugins, callback, options) {
  * @method url
  * @param {Object|String|null} what
  *  Usually the stuff that comes after the base URL.
- *  If you don't provide this, then it just returns the Q.info.baseUrl
+ *  If you don't provide this, then it just returns the Q.baseUrl()
  * @param {Object} fields
  *  Optional fields to append to the querystring.
  *  Fields containing null and undefined are skipped.
@@ -6746,7 +6767,7 @@ Q.url = function _Q_url(what, fields, options) {
 		}
 		what2 = parts[0] + (parts[1] ? '?' + parts[1] : '');
 	}
-	var baseUrl = (options && options.baseUrl) || Q.info.proxyBaseUrl || Q.info.baseUrl || '';
+	var baseUrl = (options && options.baseUrl) || Q.baseUrl();
 	what3 = Q.interpolateUrl(what2);
 	if (what3.isUrl()) {
 		if (what3.startsWith(baseUrl)) {
@@ -6817,7 +6838,7 @@ Q.interpolateUrl = function (url, additional) {
 		return url;
 	}
 	var substitutions = {};
-	substitutions['baseUrl'] = substitutions[Q.info.app] = Q.info.baseUrl;
+	substitutions['baseUrl'] = substitutions[Q.info.app] = Q.baseUrl();
 	substitutions['Q'] = Q.pluginBaseUrl('Q');
 	for (var plugin in Q.plugins) {
 		substitutions[plugin] = Q.pluginBaseUrl(plugin);
@@ -6901,7 +6922,7 @@ Q.ajaxExtend = function _Q_ajaxExtend(what, slotNames, options) {
 	if (typeof what == 'string') {
 		var p = what.split('#');
 		var what2 = p[0];
-		if (Q.info && Q.info.baseUrl === what2) {
+		if (Q.info && Q.baseUrl() === what2) {
 			what2 += '/'; // otherwise we will have 301 redirect with trailing slash on most servers
 		}
 		what2 += (what2.indexOf('?') < 0) ? '?' : '&';
@@ -7238,7 +7259,8 @@ Q.request = function (url, slotNames, callback, options) {
 			return;
 		}
 
-		if (!o.query && o.xhr !== false && url.startsWith(Q.info.baseUrl)) {
+		if (!o.query && o.xhr !== false
+		&& (url.startsWith(Q.baseUrl()))) {
 			_onStart();
 			return xhr(_onResponse, _onCancel);
 		}
@@ -8143,7 +8165,7 @@ Q.findStylesheet = function (href) {
  * @param {number} [options.expires] number of milliseconds until expiration. Defaults to session cookie.
  * @param {String} [options.domain] the domain to set cookie. If you leave it blank,
  *  then the cookie will be set as a host-only cookie, meaning that subdomains won't get it.
- * @param {String} [options.path] path to set cookie. Defaults to path from Q.info.baseUrl
+ * @param {String} [options.path] path to set cookie. Defaults to path from Q.baseUrl()
  * @return {String|null}
  *   If only name was passed, returns the stored value of the cookie, or null.
  */
@@ -8152,7 +8174,7 @@ Q.cookie = function _Q_cookie(name, value, options) {
 	options = options || {};
 	if (typeof value != 'undefined') {
 		var path, domain = '';
-		parts = Q.info.baseUrl.split('://');
+		parts = Q.baseUrl().split('://');
 		if ('path' in options) {
 			path = ';path='+options.path;
 		} else {
@@ -9124,12 +9146,13 @@ Q.handle = function _Q_handle(callables, /* callback, */ context, args, options)
 					callback = o.callback;
 				}
 			}
-			var sameDomain = callables.sameDomain(Q.info.baseUrl);
+			var baseUrl = Q.baseUrl();
+			var sameDomain = callables.sameDomain(baseUrl);
 			if (callables[0] === '#') {
 				root.location.hash = callables;
 			} else if (o.loadUsingAjax && sameDomain
 			&& (!o.target || o.target === true || o.target === '_self')) {
-				if (callables.search(Q.info.baseUrl) === 0) {
+				if (callables.search(baseUrl) === 0) {
 					// Use AJAX to refresh the page whenever the request is for a local page
 					Q.loadUrl(callables, Q.extend({
 						loadExtras: true,
@@ -9159,7 +9182,7 @@ Q.handle = function _Q_handle(callables, /* callback, */ context, args, options)
 					}
 					Q.formPost(callables, o.fields, method, {onLoad: o.callback, target: o.target});
 				} else {
-					if (Q.info && (callables === Q.info.baseUrl || callables === Q.info.proxyBaseUrl)) {
+					if (Q.info && callables === baseUrl) {
 						callables+= '/';
 					}
 					if (!o.target || o.target === true || o.target === '_self') {
@@ -9218,14 +9241,15 @@ Q.parseQueryString = function Q_parseQueryString(queryString, keys) {
 };
 
 function Q_hashChangeHandler() {
+	var baseUrl = Q.baseUrl();
 	var url = location.hash.queryField('url'), result = null;
 	if (url === undefined) {
-		url = root.location.href.split('#')[0].substr(Q.info.baseUrl.length + 1);
+		url = root.location.href.split('#')[0].substr(baseUrl.length + 1);
 	}
 	if (Q_hashChangeHandler.ignore) {
 		Q_hashChangeHandler.ignore = false;
 	} else if (url != Q_hashChangeHandler.currentUrl) {
-		Q.handle(url.indexOf(Q.info.baseUrl) == -1 ? Q.info.baseUrl + '/' + url : url);
+		Q.handle(url.indexOf(baseUrl) == -1 ? baseUrl + '/' + url : url);
 		result = true;
 	}
 	Q_hashChangeHandler.currentUrl = url;
@@ -9233,14 +9257,15 @@ function Q_hashChangeHandler() {
 }
 
 function Q_popStateHandler() {
+	var baseUrl = Q.baseUrl();
 	var url = root.location.href.split('#')[0], result = null;
 	if (Q.info.url === url) {
 		return; // we are already at this url
 	}
-	url = url.substr(Q.info.baseUrl.length + 1);
+	url = url.substr(baseUrl.length + 1);
 	if (url != Q_hashChangeHandler.currentUrl) {
 		Q.handle(
-			url.indexOf(Q.info.baseUrl) === 0 ? url : Q.info.baseUrl + '/' + url,
+			url.indexOf(baseUrl) === 0 ? url : baseUrl + '/' + url,
 			{
 				ignoreHistory: true,
 				quiet: true
@@ -9480,7 +9505,7 @@ Q.baseUrl = function _Q_host(where) {
 			return result;
 		}
 	}
-	return Q.info.baseUrl; // By default, return the base url of the app
+	return Q.info.proxyBaseUrl || Q.info.baseUrl; // By default, return the base url of the app
 };
 Q.baseUrl.routers = []; // functions returning a custom url
 
@@ -10011,9 +10036,16 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
 		}
 		// If we have a disconnected socket that is not connecting.
 		// Forget this socket manager, we must connect another one
-		// because socket.io doesn't reconnect normally otherwise
+		// because g doesn't reconnect normally otherwise
+		var baseUrl = Q.baseUrl();
+		var parsed = url.parseUrl();
+		var host = parsed.scheme + '://' + parsed.host 
+			+ (parsed.port ? ':'+parsed.port : '');
+		if (url.startsWith(host+'/')) {
+			o.path = url.substr(host.length) + Q.getObject('Q.info.socketPath');
+		}
 		_qsockets[ns][url] = qs = new Q.Socket({
-			socket: root.io.connect(url + ns, o),
+			socket: root.io.connect(host+ns, o),
 			url: url,
 			ns: ns
 		});
@@ -10028,8 +10060,8 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
 		_ioOn(socket.io, 'close', function () {
 			console.log('Socket ' + ns + ' disconnected from '+url);
 		});
-		_ioOn(socket, 'error', function () {
-			console.log('Error on connection '+url);
+		_ioOn(socket, 'error', function (error) {
+			console.log('Error on connection '+url+' ('+error+')');
 		});
 
 		callback2 && callback2(_qsockets[ns][url], ns, url);
@@ -13169,7 +13201,7 @@ processStylesheets(); // NOTE: the above works only for stylesheets included bef
 Q.addEventListener(window, 'load', Q.onLoad.handle);
 Q.onInit.add(function () {
 	Q_hashChangeHandler.currentUrl = window.location.href.split('#')[0]
-		.substr(Q.info.baseUrl.length + 1);
+		.substr(Q.baseUrl().length + 1);
 	if (window.history.pushState) {
 		Q.onPopState.set(Q_popStateHandler, 'Q.loadUrl');
 	} else {
@@ -14001,7 +14033,7 @@ Q.Notices = {
 };
 
 Q.beforeInit.addOnce(function () {
-	if (!Q.info.baseUrl) {
+	if (!Q.baseUrl()) {
 		throw new Q.Error("Please set Q.info.baseUrl before calling Q.init()");
 	}
 	if (_appId) {
