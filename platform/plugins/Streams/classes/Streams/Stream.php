@@ -327,6 +327,13 @@ class Streams_Stream extends Base_Streams_Stream
 			);
 		}
 
+		if (isset($this->title) and is_array($this->title)) {
+			$this->title = Q::interpolate($this->title); // fetch from text files
+		}
+		if (isset($this->content) and is_array($this->content)) {
+			$this->content = Q::interpolate($this->content); // fetch from text files
+		}
+
 		if (!$this->retrieved) {
 			foreach (array('messageCount', 'invitedCount', 'participatingCount') as $f) {
 				if (!isset($this->$f)) {
