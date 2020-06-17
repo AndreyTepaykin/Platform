@@ -363,6 +363,7 @@ Sp.queryField = function Q_queryField(name, value) {
 		Q.each(name, function (key, value) {
 			result = result.queryField(key, value);
 		});
+		return result;
 	} else if (value === undefined) {
 		return Q.parseQueryString(what) [ name ];
 	} else if (value === null) {
@@ -13266,6 +13267,10 @@ Q.onInit.add(function () {
 		QtQw.ClickOrTap = isTouchscreen ? QtQw.Tap : QtQw.Click;
 		QtQw.clickOrTap = isTouchscreen ? QtQw.tap : QtQw.click;
 	});
+	
+	// load this ASAP so dialogs can load synchronously (for keyboard focus, etc.)
+	Q.addScript("{{Q}}/js/fn/dialog.js");
+	Q.addScript("{{Q}}/js/fn/clickfocus.js");
 
 	function _enableSpeech () {
 		var s = new SpeechSynthesisUtterance();
