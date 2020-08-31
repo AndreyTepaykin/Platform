@@ -1,0 +1,20 @@
+{
+    "welcome": {
+        "Welcome": "¡Bienvenido!",
+        "ToStart": "Para iniciar una nueva aplicación, debes seguir las instrucciones <a href='{{link}}'>aquí<\/a>",
+        "RenderedInMs": "Ah, y por cierto, esto se tradujo en {{1}} ms.",
+        "RefreshPage": "Actualice la página varias veces y vea la eficacia de la plataforma Qbix.",
+        "EvenFaster": "De hecho, se puede ejecutar <a href='{{1}}'>incluso más rápido<\/a> ."
+    },
+    "about": {
+        "About": "Alrededor de 1}}",
+        "CanWrite": "Aquí puede escribir algo sobre esta aplicación o sitio web.",
+        "OrRemove": "O si lo desea, puede quitar esta página."
+    },
+    "errors": {
+        "Rendering": "Hubo errores al procesar <span class='url'>{{1}}<\/span>"
+    },
+    "notFound": {
+        "Explanation": "<span class='url'>{{1}}<\/span> no apunta a nada."
+    }
+}

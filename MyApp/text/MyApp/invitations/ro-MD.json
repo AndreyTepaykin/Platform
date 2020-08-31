@@ -1,0 +1,12 @@
+{
+    "flyer1": {
+        "YouAreInvited": "Esti invitat",
+        "Member": "Membru la {{title}}",
+        "Explanation": "{{1}} are plăcerea să anunțe lansarea noului site web. Acesta include o listă tot mai mare de caracteristici, cum ar fi:",
+        "Public": "Informațiile publice despre {{1}}",
+        "Private": "Un cont de utilizator privat pentru fiecare membru",
+        "Notifications": "Introducând adresa dvs. de e-mail sau numărul de telefon mobil, veți putea primi notificări importante prin e-mail sau prin mesaje text.",
+        "GetStarted": "Pentru a începe, în browserul dvs. web, introduceți <em>cu atenție<\/em> : <br>",
+        "IssuedToYou": "Acest cod este eliberat în mod specific pentru dvs."
+    }
+}

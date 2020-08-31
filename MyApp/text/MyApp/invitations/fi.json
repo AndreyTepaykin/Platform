@@ -1,0 +1,12 @@
+{
+    "flyer1": {
+        "YouAreInvited": "Sinut on kutsuttu",
+        "Member": "Jäsen {{title}}",
+        "Explanation": "{{1}} ilmoittaa uuden verkkosivustonsa käynnistämisestä. Se sisältää kasvavaa luetteloa ominaisuuksista, kuten:",
+        "Public": "Julkiset tiedot {{1}}",
+        "Private": "Yksityinen käyttäjätili jokaiselle jäsenelle",
+        "Notifications": "Antamalla sähköpostiosoitteesi tai matkapuhelinnumerosi voit saada tärkeitä ilmoituksia sähköpostitse tai tekstiviestillä.",
+        "GetStarted": "Aloita selaimesi kirjoittamalla <em>huolellisesti seuraavat tiedot<\/em> : <br>",
+        "IssuedToYou": "Tämä koodi on annettu sinulle."
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "welcome": {
+        "Welcome": "Üdvözöljük!",
+        "ToStart": "Új alkalmazás indításához kövesse az <a href='{{link}}'>itt található<\/a> utasításokat",
+        "RenderedInMs": "Ó, és egyébként ez a {{1}} ms-ban jelent meg.",
+        "RefreshPage": "Frissítse az oldalt néhányszor, és nézze meg, mennyire hatékony a Qbix platform.",
+        "EvenFaster": "Valójában <a href='{{1}}'>még gyorsabban<\/a> is végrehajtható."
+    },
+    "about": {
+        "About": "Körülbelül {{1}}",
+        "CanWrite": "Itt írhat valamit az alkalmazásról vagy a webhelyről.",
+        "OrRemove": "Vagy ha szeretné, eltávolíthatja ezt az oldalt."
+    },
+    "errors": {
+        "Rendering": "Hiba történt a (z) <span class='url'>{{1}}<\/span> renderelés közben"
+    },
+    "notFound": {
+        "Explanation": "<span class='url'>{{1}}<\/span> nem mutat semmit."
+    }
+}

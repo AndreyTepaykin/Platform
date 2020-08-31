@@ -1,0 +1,20 @@
+{
+    "welcome": {
+        "Welcome": "Witamy!",
+        "ToStart": "Aby rozpocząć nową aplikację, należy postępować zgodnie z instrukcjami <a href='{{link}}'>tutaj<\/a>",
+        "RenderedInMs": "Och, a przy okazji, to wydało się w {{1}} ms.",
+        "RefreshPage": "Odśwież stronę kilka razy i sprawdź, jaka może być platforma Qbix.",
+        "EvenFaster": "W rzeczywistości może on być <a href='{{1}}'>jeszcze szybszy<\/a> ."
+    },
+    "about": {
+        "About": "O {{1}}",
+        "CanWrite": "Tutaj możesz napisać coś o tej aplikacji lub witrynie.",
+        "OrRemove": "Jeśli chcesz, możesz usunąć tę stronę."
+    },
+    "errors": {
+        "Rendering": "Podczas renderowania <span class='url'>{{1}}<\/span> wystąpiły błędy"
+    },
+    "notFound": {
+        "Explanation": "<span class='url'>{{1}}<\/span> nie wskazuje na nic."
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "flyer1": {
+        "YouAreInvited": "Meg vagy hívva",
+        "Member": "Tag {{title}}",
+        "Explanation": "{{1}} örömmel jelenti be új weboldalunk elindítását. Ez magában foglalja a funkciók egyre növekvő listáját, például:",
+        "Public": "Nyilvános információk a (z) {{1}}",
+        "Private": "Privát felhasználói fiók minden tag számára",
+        "Notifications": "Az e-mail cím vagy mobilszám megadásával fontos értesítéseket kaphat e-mailben vagy szöveges üzenetben.",
+        "GetStarted": "A kezdéshez a böngészőjében, kérjük <em>figyelmesen<\/em> adja: <br>",
+        "IssuedToYou": "Ezt a kódot kifejezetten az Ön számára adják ki."
+    }
+}

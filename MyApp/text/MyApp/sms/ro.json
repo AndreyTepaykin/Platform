@@ -1,0 +1,16 @@
+{
+    "activation": {
+        "Thanks": "Vă mulțumim pentru înscrierea pentru {{1}}",
+        "ReallyYourEmail": "Este cu adevărat adresa dvs. de e-mail, {{1}}? Dacă da, dați clic <a href='{{2}}'>aici<\/a> pentru a vă stabili fraza de acces și pentru a vă activa contul.",
+        "SeeYou": "Ne vedem la <a href='{{1}}'>{{2}}<\/a> !"
+    },
+    "LinkToUnsubscribe": "Iată un link pentru a vă <a href='{{unsubscribe}}'>dezabona<\/a> dacă nu doriți să mai primiți alte e-mailuri.",
+    "Greetings": "Salutări de la {{1}}.",
+    "charge": {
+        "HasBeenCharged": "Doar pentru a vă informa că {{1}} a fost taxat {{2}} pentru {{3}} până la {{4}}",
+        "See All Subscriptions": "Vedeți toate abonamentele pentru {{1}}"
+    },
+    "charged": {
+        "HavePaid": "Hei {{1}}, aceasta este doar o confirmare rapidă că ați plătit cu succes {{2}} până la {{3}} pentru {{4}}"
+    }
+}

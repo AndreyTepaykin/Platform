@@ -1,0 +1,20 @@
+{
+    "welcome": {
+        "Welcome": "ようこそ！",
+        "ToStart": "新しいアプリを起動するには、 <a href='{{link}}'>ここ<\/a>の手順に従ってください",
+        "RenderedInMs": "ああ、ところで、これは{{1}} msでレンダリングされました。",
+        "RefreshPage": "ページを数回リフレッシュし、Qbixプラットフォームの効率を確認してください。",
+        "EvenFaster": "実際、 <a href='{{1}}'>もっと速く<\/a>実行することができ<a href='{{1}}'>ます<\/a> 。"
+    },
+    "about": {
+        "About": "{1}について",
+        "CanWrite": "ここでは、このアプリやウェブサイトに関する何かを書くことができます。",
+        "OrRemove": "または、必要に応じてこのページを削除できます。"
+    },
+    "errors": {
+        "Rendering": "<span class='url'>{{1}}の<\/span>レンダリング中にエラーが発生しました"
+    },
+    "notFound": {
+        "Explanation": "<span class='url'>{1}<\/span>は何も指していません。"
+    }
+}

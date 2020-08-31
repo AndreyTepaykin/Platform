@@ -1,0 +1,16 @@
+{
+    "activation": {
+        "Thanks": "Merci de vous inscrire à {{1}}",
+        "ReallyYourEmail": "Est-ce vraiment votre adresse e-mail, {{1}}? Si oui, cliquez <a href='{{2}}'>ici<\/a> pour définir votre mot de passe et activer votre compte.",
+        "SeeYou": "Rendez-vous sur <a href='{{1}}'>{{2}}<\/a> !"
+    },
+    "LinkToUnsubscribe": "Voici un lien pour vous <a href='{{unsubscribe}}'>désabonner<\/a> si vous ne souhaitez plus recevoir de courriels.",
+    "Greetings": "Salutations de {{1}}.",
+    "charge": {
+        "HasBeenCharged": "Ceci est juste pour vous informer que {{1}} a été chargé {{2}} pour {{3}} par {{4}}",
+        "See All Subscriptions": "Voir tous les abonnements pour {{1}}"
+    },
+    "charged": {
+        "HavePaid": "Hey {{1}}, c&#39;est juste une confirmation rapide que vous avez réussi à payer {{2}} à {{3}} pour {{4}}"
+    }
+}

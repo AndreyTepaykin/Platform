@@ -1,0 +1,16 @@
+{
+    "activation": {
+        "Thanks": "Köszönjük, hogy feliratkozott a {{1}}",
+        "ReallyYourEmail": "Ez valóban az Ön e-mail címe, {{1}}? Ha igen, akkor kattintson <a href='{{2}}'>ide<\/a> a jelszó beállításához és a fiók aktiválásához.",
+        "SeeYou": "Látogasson el <a href='{{1}}'>{{2}}<\/a> !"
+    },
+    "LinkToUnsubscribe": "Itt van egy link a <a href='{{unsubscribe}}'>leiratkozáshoz,<\/a> ha nem akar több e-mailt kapni.",
+    "Greetings": "Üdvözlet {{1}}.",
+    "charge": {
+        "HasBeenCharged": "Ez azért van, mert tudniillik, hogy {{1}} {{2}} {{3}} {{4}}",
+        "See All Subscriptions": "Az összes {{1}} előfizetés megtekintése"
+    },
+    "charged": {
+        "HavePaid": "Hé {{1}}, ez csak egy gyors megerősítés, hogy sikeresen kifizetett {{2}} -ot {{3}} -ért {{4}}"
+    }
+}

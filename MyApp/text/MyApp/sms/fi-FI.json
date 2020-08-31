@@ -1,0 +1,16 @@
+{
+    "activation": {
+        "Thanks": "Kiitos, että kirjaudut sisään {{1}}",
+        "ReallyYourEmail": "Onko tämä todella sähköpostiosoitteesi, {{1}}? Jos näin on, klikkaa <a href='{{2}}'>tästä<\/a> asettaaksesi salasanasi ja aktivoi tilisi.",
+        "SeeYou": "Nähdään <a href='{{1}}'>{{2}}<\/a> !"
+    },
+    "LinkToUnsubscribe": "Tässä on linkki <a href='{{unsubscribe}}'>tilauksen peruuttamiseen,<\/a> jos et halua saada lisää sähköposteja.",
+    "Greetings": "Terveisiä {{1}}.",
+    "charge": {
+        "HasBeenCharged": "Tämä on vain tiedoksi, että {{1}} on veloitettu {{2}} {{3}} {{4}}",
+        "See All Subscriptions": "Katso kaikki {{1}} tilaukset"
+    },
+    "charged": {
+        "HavePaid": "Hei {{1}}, tämä on vain nopea vahvistus siitä, että olet onnistuneesti maksanut {{2}} {{3}} {{4}}"
+    }
+}
