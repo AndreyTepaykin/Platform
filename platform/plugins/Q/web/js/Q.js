@@ -12725,10 +12725,10 @@ Q.extend(Q.prompt.options, Q.text.prompt);
  * @return {Integer} Returns the index of the handler that executed in Q.invoke.handlers
  */
 Q.invoke = function (options) {
-	var extendedOptions = options;
+	var o = options;
 	if (options.template) {
 		Q.Template.render(options.template.name, options.template.fields, function (err, html) {
-			extendedOptions = Q.extend({ content: html }, options);
+			o = Q.extend({ content: html }, options);
 			_continue();
 		});
 	} else {
