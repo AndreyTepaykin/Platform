@@ -61,7 +61,7 @@ Q.Tool.define("Q/video", function (options) {
 	};
 	tool.adapters.youtube = {
 		init: function () {
-			Q.addScript("{{Q}}/js/videojs/plugins/Youtube.js", function () {
+			Q.addScript("{{Q}}/js/videojs/plugins/YouTube.js", function () {
 				var options = {
 					techOrder: ["youtube"],
 					sources: [{
@@ -236,19 +236,20 @@ Q.Tool.define("Q/video", function (options) {
 		newA.href = url;
 		var host = newA.hostname;
 
-		if (host.includes("youtube")) {
+		if (host.includes("youtube.com") || host.includes("youtu.be")) {
 			return 'youtube';
 		}
-		if (host.includes("vimeo")) {
+		if (host.includes("vimeo.com")) {
 			return 'vimeo';
 		}
-		if (url.split('.').pop() === 'mp4') {
+		var ext = url.split('.').pop();
+		if (ext === 'mp4') {
 			return 'mp4';
 		}
-		if (url.split('.').pop() === 'webm') {
+		if (ext === 'webm') {
 			return 'webm';
 		}
-		if (url.split('.').pop() === 'ogv') {
+		if (ext === 'ogg') {
 			return 'ogg';
 		}
 		throw new Q.Exception(this.id + ': No adapter for this URL');

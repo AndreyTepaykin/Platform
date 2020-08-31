@@ -1006,8 +1006,8 @@ function presentColumn(tool, $column, fullscreen, recalculateHeights) {
 		$cs.css('top', '-' + titleOuterHeight + 'px');
 	}
 	var $controls = $column.find('.Q_controls_slot');
-	var cth = $ct.is(":visible") && !hideTitle ? $ct.height() : 0;
-	var controlsh = $controls.is(":visible") ? $controls.height() : 0;
+	var cth = $ct.is(":visible") && !hideTitle ? $ct.outerHeight() : 0;
+	var controlsh = $controls.is(":visible") ? $controls.outerHeight() : 0;
 	var index = parseInt($column.attr('data-index'));
 	var heightToBottom;
 	if (Q.info.isMobile) {
@@ -1151,6 +1151,7 @@ Q.invoke.handlers.unshift(function (options, callback) {
 			}
 			if (node.hasClass('Q_columns_tool')) {
 				columns = node.Q.tools['q_columns'];
+				break;
 			}
 		}
 		node = node.parentNode;

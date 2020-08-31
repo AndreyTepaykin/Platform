@@ -102,6 +102,9 @@ Q.text = {
 		"prompt": {
 			"title": "Prompt",
 			"ok": "Go"
+		},
+		"tabs": {
+			"more": "more"
 		}
 	}
 }; // put all your text strings here e.g. Q.text.Users.foo
@@ -5725,7 +5728,11 @@ Q.Page.push = function (url, title) {
 	var parts = url.split('#');
 	var path = (url.substr(Q.baseUrl().length+1) || '');
 	if (history.pushState) {
-		history.pushState({}, null, url);
+		if (typeof title === 'string') {
+			history.pushState({}, title, url);	
+		} else {
+			history.pushState({}, null, url);
+		}
 	} else {
 		var hash = '#!url=' + encodeURIComponent(path) +
 			location.hash.replace(/#!url=[^&]*/, '')
@@ -6748,8 +6755,10 @@ Q.trigger = function _Q_trigger(eventName, element, args) {
  *  on container elements.
  *  If a non-element is passed here (such as null, or a DOMEvent)
  *  then this defaults to the document element.
+ * @param {Boolean} [force] Pass true here to handle Q.onLayout events
+ *   even if ResizeObserver was added
  */
-Q.layout = function _Q_layout(element) {
+Q.layout = function _Q_layout(element, force) {
 	if (!(element instanceof Element)) {
 		element = null;
 	}
@@ -6758,7 +6767,7 @@ Q.layout = function _Q_layout(element) {
 			var event = _layoutEvents[i];
 
 			// return if ResizeObserver defined on this element
-			if (_layoutObservers[i]) {
+			if (!force && _layoutObservers[i]) {
 				return;
 			}
 
@@ -8881,7 +8890,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 				}
 
 				if (!o.ignoreHistory) {
-					Q.Page.push(url);
+					Q.Page.push(url, Q.getObject('slots.title', response));
 				}
 			
 				if (!o.ignorePage) {
@@ -12397,9 +12406,6 @@ Q.Dialogs = {
 				$title = $('<div class="Q_title_slot" />').append($h2);
 				$content = $('<div class="Q_dialog_slot Q_dialog_content Q_overflow" />');
 				$dialog = $('<div />').append($title).append($content);
-				if (o.className) {
-					$dialog.addClass(o.className);
-				}
 				if (o.apply) {
 					$dialog.addClass('Q_overlay_apply');
 				}
@@ -12730,7 +12736,7 @@ Q.invoke = function (options) {
 	}
 	function _continue() {
 		Q.each(Q.invoke.handlers, function (i, handler) {
-			var ret = Q.handle(handler, Q, [extendedOptions]);
+			var ret = Q.handle(handler, Q, [o]);
 			if (ret === false) {
 				return false
 			}
@@ -12939,7 +12945,7 @@ Aup.pause = function () {
 
 /**
  * @method pause
- * Pauses the audio if it is playing
+ * Pauses all the audio that is playing
  */
 Q.Audio.pauseAll = function () {
 	for (var url in Q.Audio.collection) {
@@ -13402,18 +13408,21 @@ Q.onInit.add(function () {
 		Q.addEventListener(document.body, 'click', _enableSpeech, false, true);
 	}
 
-	Q.Text.get('Q/content', function (err, text) {
-		if (!text) {
-			return;
-		}
-		Q.extend(Q.text.Q, 10, text);
-		Q.extend(Q.confirm.options, 10, Q.text.confirm);
-		Q.extend(Q.prompt.options, 10, Q.text.prompt);
-		Q.extend(Q.alert.options, 10, Q.text.alert);
-		var QtQw = Q.text.Q.words;
-		QtQw.ClickOrTap = isTouchscreen ? QtQw.Tap : QtQw.Click;
-		QtQw.clickOrTap = isTouchscreen ? QtQw.tap : QtQw.click;
-	});
+	if (['en', 'en-US'].indexOf(Q.Text.languageLocale) < 0) {
+		Q.Text.get('Q/content', function (err, text) {
+			if (!text) {
+				return;
+			}
+			Q.extend(Q.text.Q, 10, text);
+			Q.extend(Q.confirm.options, 10, Q.text.confirm);
+			Q.extend(Q.prompt.options, 10, Q.text.prompt);
+			Q.extend(Q.alert.options, 10, Q.text.alert);
+			var QtQw = Q.text.Q.words;
+			QtQw.ClickOrTap = isTouchscreen ? QtQw.Tap : QtQw.Click;
+			QtQw.clickOrTap = isTouchscreen ? QtQw.tap : QtQw.click;
+			Q.layout(null, true);
+		});
+	}
 	
 	// load this ASAP so dialogs can load synchronously (for keyboard focus, etc.)
 	Q.addScript("{{Q}}/js/fn/dialog.js");
