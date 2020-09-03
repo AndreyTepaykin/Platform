@@ -101,7 +101,7 @@
 			},
 			retain: {},
 			loaderOptions: {
-				retainPropertiesOf: '.Q_overflow,.Q_columns_column'
+				retainPropertiesOf: '.Q_overflow,.Q_column_slot'
 			},
 			loader: Q.req,
 			onClick: new Q.Event(),
@@ -299,9 +299,9 @@
 									&& retained.elementsWithProperties[slotName];
 								Q.replace(element, this);
 								Q.each (ep, function () {
-									Q.each(this.Q_retained_properties, function (k, v) {
-										element[k] = v;
-									});
+									for (var k in this.Q_retained_properties) {
+										this[k] = this.Q_retained_properties[k];
+									}
 									delete this.Q_retained_properties;
 								});
 								Q.activate(element);
@@ -569,8 +569,6 @@
 					Q.handle(state.onRefresh, this);
 					return callback && callback.call(tool);
 				}
-				tool.overflowIndex = index;
-				tool.$overflow = $overflow;
 				if (tabAlreadyVisible) {
 					$overflow.addClass('Q_tabs_alreadyVisible')
 					.find('.Q_tabs_copiedTitle').html(
@@ -580,13 +578,24 @@
 					_copyClassToOverflow(tool);
 					$overflow.addClass('Q_current');
 				}
+				tool.overflowIndex = index;
+				if (tool.$overflow && tool.$overflow.closest('html').length) {
+					tool.$overflow.plugin('Q/contextual', 'remove');
+					tool.$tabs.css('visibility', 'visible');
+					Q.handle(state.onRefresh, this);
+					Q.handle(callback, tool);
+					$overflow.css('visibility', 'visible');
+					return;
+				}
+				tool.$overflow = $overflow;
 				Q.addScript("{{Q}}/js/QTools.js", function () {
 					var elements = [];
 					for (var i=index+1; i<$tabs.length; ++i) {
 						elements.push($tabs[i]);
 					}
 					$(elements).removeAttr('data-touchlabel');
-					$overflow.plugin("Q/contextual", {
+					$overflow.plugin("Q/contextual", "remove")
+					.plugin("Q/contextual", {
 						elements: elements,
 						className: "Q_tabs_contextual",
 						defaultHandler: state.contextualHandler,
