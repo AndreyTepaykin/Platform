@@ -827,6 +827,9 @@ Elp.scrollingParent = function(skipIfNotOverflowed, direction, includeSelf) {
 	var p = this;
 	while (includeSelf ? 1 : (p = p.parentNode)) {
 		includeSelf = false;
+		if (p === document.documentElement) {
+			break;
+		}
 		if (typeof p.computedStyle !== 'function') {
 			continue;
 		}
@@ -847,7 +850,7 @@ Elp.scrollingParent = function(skipIfNotOverflowed, direction, includeSelf) {
 			}
 		}
 	}
-	return document.documentElement;
+	return p || null;
 };
 
 /**
@@ -8334,8 +8337,10 @@ Q.cookie = function _Q_cookie(name, value, options) {
 		parts = Q.baseUrl().split('://');
 		if ('path' in options) {
 			path = ';path='+options.path;
-		} else {
+		} else if (parts[1]) {
 			path = ';path=/' + parts[1].split('/').slice(1).join('/');
+		} else {
+			return null;
 		}
 		if ('domain' in options) {
 			domain = ';domain='+options.domain;
