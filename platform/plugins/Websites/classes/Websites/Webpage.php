@@ -757,7 +757,7 @@ class Websites_Webpage extends Base_Websites_Webpage
 				'srt.toStreamName' => 'ss.name',
 				'srt.toPublisherId' => 'ss.publisherId'
 			))->where(array(
-				'srt.fromPublisherId' => $stream->publisherId,
+				//'srt.fromPublisherId' => $stream->publisherId,
 				'srt.fromStreamName' => $stream->name,
 				'srt.type' => $stream->type.'/interest'
 			))
