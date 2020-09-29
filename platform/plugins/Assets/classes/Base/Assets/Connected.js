@@ -26,7 +26,7 @@ var Row = Q.require('Db/Row');
  * @param {String} [fields.accountId] defaults to ""
  * @param {String} [fields.refreshToken] defaults to ""
  * @param {String|Db.Expression} [fields.insertedTime] defaults to new Db.Expression("CURRENT_TIMESTAMP")
- * @param {String|Db.Expression} [fields.updatedTime] defaults to "0000-00-00 00:00:00"
+ * @param {String|Db.Expression} [fields.updatedTime] defaults to new Db.Expression("CURRENT_TIMESTAMP")
  */
 function Base (fields) {
 	Base.constructors.apply(this, arguments);
@@ -67,7 +67,7 @@ Q.mixin(Base, Row);
 /**
  * @property updatedTime
  * @type String|Db.Expression
- * @default "0000-00-00 00:00:00"
+ * @default new Db.Expression("CURRENT_TIMESTAMP")
  * 
  */
 
@@ -487,7 +487,7 @@ Base.prototype.beforeSet_updatedTime = function (value) {
 	 */
 Base.column_updatedTime = function () {
 
-return [["timestamp","255","",false],false,"","0000-00-00 00:00:00"];
+return [["timestamp","255","",false],false,"","CURRENT_TIMESTAMP"];
 };
 
 /**

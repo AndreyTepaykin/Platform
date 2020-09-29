@@ -18,10 +18,12 @@
  * an associative array of $column => $value pairs
  * @param {string} [$fields.userId] defaults to ""
  * @param {string} [$fields.id] defaults to ""
- * @param {string} [$fields.attributes] defaults to ""
+ * @param {string} [$fields.publisherId] defaults to ""
+ * @param {string} [$fields.streamName] defaults to ""
  * @param {string} [$fields.description] defaults to ""
+ * @param {string} [$fields.attributes] defaults to ""
  * @param {string|Db_Expression} [$fields.insertedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
- * @param {string|Db_Expression} [$fields.updatedTime] defaults to "0000-00-00 00:00:00"
+ * @param {string|Db_Expression} [$fields.updatedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
  */
 abstract class Base_Assets_Charge extends Db_Row
 {
@@ -38,16 +40,28 @@ abstract class Base_Assets_Charge extends Db_Row
 	 * 
 	 */
 	/**
-	 * @property $attributes
+	 * @property $publisherId
 	 * @type string
 	 * @default ""
-	 * additional information for the charge in JSON format
+	 * publisherId of the stream regarding which the charge was made
+	 */
+	/**
+	 * @property $streamName
+	 * @type string
+	 * @default ""
+	 * name of the stream regarding which the charge was made
 	 */
 	/**
 	 * @property $description
 	 * @type string
 	 * @default ""
-	 * 
+	 * human-readable description of the charge
+	 */
+	/**
+	 * @property $attributes
+	 * @type string
+	 * @default ""
+	 * additional information for the charge in JSON format
 	 */
 	/**
 	 * @property $insertedTime
@@ -58,7 +72,7 @@ abstract class Base_Assets_Charge extends Db_Row
 	/**
 	 * @property $updatedTime
 	 * @type string|Db_Expression
-	 * @default "0000-00-00 00:00:00"
+	 * @default new Db_Expression("CURRENT_TIMESTAMP")
 	 * 
 	 */
 	/**
@@ -387,54 +401,108 @@ return array (
 	/**
 	 * Method is called before setting the field and verifies if value is string of length within acceptable limit.
 	 * Optionally accept numeric value which is converted to string
-	 * @method beforeSet_attributes
+	 * @method beforeSet_publisherId
 	 * @param {string} $value
 	 * @return {array} An array of field name and value
 	 * @throws {Exception} An exception is thrown if $value is not string or is exceedingly long
 	 */
-	function beforeSet_attributes($value)
+	function beforeSet_publisherId($value)
 	{
 		if (!isset($value)) {
 			$value='';
 		}
 		if ($value instanceof Db_Expression) {
-			return array('attributes', $value);
+			return array('publisherId', $value);
 		}
 		if (!is_string($value) and !is_numeric($value))
-			throw new Exception('Must pass a string to '.$this->getTable().".attributes");
-		if (strlen($value) > 1023)
-			throw new Exception('Exceedingly long value being assigned to '.$this->getTable().".attributes");
-		return array('attributes', $value);			
+			throw new Exception('Must pass a string to '.$this->getTable().".publisherId");
+		if (strlen($value) > 255)
+			throw new Exception('Exceedingly long value being assigned to '.$this->getTable().".publisherId");
+		return array('publisherId', $value);			
 	}
 
 	/**
-	 * Returns the maximum string length that can be assigned to the attributes field
+	 * Returns the maximum string length that can be assigned to the publisherId field
 	 * @return {integer}
 	 */
-	function maxSize_attributes()
+	function maxSize_publisherId()
 	{
 
-		return 1023;			
+		return 255;			
 	}
 
 	/**
-	 * Returns schema information for attributes column
+	 * Returns schema information for publisherId column
 	 * @return {array} [[typeName, displayRange, modifiers, unsigned], isNull, key, default]
 	 */
-	static function column_attributes()
+	static function column_publisherId()
 	{
 
 return array (
   0 => 
   array (
-    0 => 'varchar',
-    1 => '1023',
+    0 => 'varbinary',
+    1 => '255',
     2 => '',
     3 => false,
   ),
   1 => false,
   2 => '',
-  3 => NULL,
+  3 => '',
+);			
+	}
+
+	/**
+	 * Method is called before setting the field and verifies if value is string of length within acceptable limit.
+	 * Optionally accept numeric value which is converted to string
+	 * @method beforeSet_streamName
+	 * @param {string} $value
+	 * @return {array} An array of field name and value
+	 * @throws {Exception} An exception is thrown if $value is not string or is exceedingly long
+	 */
+	function beforeSet_streamName($value)
+	{
+		if (!isset($value)) {
+			$value='';
+		}
+		if ($value instanceof Db_Expression) {
+			return array('streamName', $value);
+		}
+		if (!is_string($value) and !is_numeric($value))
+			throw new Exception('Must pass a string to '.$this->getTable().".streamName");
+		if (strlen($value) > 255)
+			throw new Exception('Exceedingly long value being assigned to '.$this->getTable().".streamName");
+		return array('streamName', $value);			
+	}
+
+	/**
+	 * Returns the maximum string length that can be assigned to the streamName field
+	 * @return {integer}
+	 */
+	function maxSize_streamName()
+	{
+
+		return 255;			
+	}
+
+	/**
+	 * Returns schema information for streamName column
+	 * @return {array} [[typeName, displayRange, modifiers, unsigned], isNull, key, default]
+	 */
+	static function column_streamName()
+	{
+
+return array (
+  0 => 
+  array (
+    0 => 'varbinary',
+    1 => '255',
+    2 => '',
+    3 => false,
+  ),
+  1 => false,
+  2 => '',
+  3 => '',
 );			
 	}
 
@@ -488,7 +556,61 @@ return array (
   ),
   1 => false,
   2 => '',
-  3 => '',
+  3 => NULL,
+);			
+	}
+
+	/**
+	 * Method is called before setting the field and verifies if value is string of length within acceptable limit.
+	 * Optionally accept numeric value which is converted to string
+	 * @method beforeSet_attributes
+	 * @param {string} $value
+	 * @return {array} An array of field name and value
+	 * @throws {Exception} An exception is thrown if $value is not string or is exceedingly long
+	 */
+	function beforeSet_attributes($value)
+	{
+		if (!isset($value)) {
+			$value='';
+		}
+		if ($value instanceof Db_Expression) {
+			return array('attributes', $value);
+		}
+		if (!is_string($value) and !is_numeric($value))
+			throw new Exception('Must pass a string to '.$this->getTable().".attributes");
+		if (strlen($value) > 1023)
+			throw new Exception('Exceedingly long value being assigned to '.$this->getTable().".attributes");
+		return array('attributes', $value);			
+	}
+
+	/**
+	 * Returns the maximum string length that can be assigned to the attributes field
+	 * @return {integer}
+	 */
+	function maxSize_attributes()
+	{
+
+		return 1023;			
+	}
+
+	/**
+	 * Returns schema information for attributes column
+	 * @return {array} [[typeName, displayRange, modifiers, unsigned], isNull, key, default]
+	 */
+	static function column_attributes()
+	{
+
+return array (
+  0 => 
+  array (
+    0 => 'varchar',
+    1 => '1023',
+    2 => '',
+    3 => false,
+  ),
+  1 => false,
+  2 => '',
+  3 => NULL,
 );			
 	}
 
@@ -528,7 +650,7 @@ return array (
   0 => 
   array (
     0 => 'timestamp',
-    1 => '255',
+    1 => '1023',
     2 => '',
     3 => false,
   ),
@@ -574,13 +696,13 @@ return array (
   0 => 
   array (
     0 => 'timestamp',
-    1 => '255',
+    1 => '1023',
     2 => '',
     3 => false,
   ),
   1 => false,
   2 => '',
-  3 => '0000-00-00 00:00:00',
+  3 => 'CURRENT_TIMESTAMP',
 );			
 	}
 
@@ -616,7 +738,7 @@ return array (
 	 */
 	static function fieldNames($table_alias = null, $field_alias_prefix = null)
 	{
-		$field_names = array('userId', 'id', 'attributes', 'description', 'insertedTime', 'updatedTime');
+		$field_names = array('userId', 'id', 'publisherId', 'streamName', 'description', 'attributes', 'insertedTime', 'updatedTime');
 		$result = $field_names;
 		if (!empty($table_alias)) {
 			$temp = array();

@@ -27,7 +27,7 @@
  * @param {integer} [$fields.credits] defaults to 0
  * @param {string} [$fields.attributes] defaults to null
  * @param {string|Db_Expression} [$fields.insertedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
- * @param {string|Db_Expression} [$fields.updatedTime] defaults to "0000-00-00 00:00:00"
+ * @param {string|Db_Expression} [$fields.updatedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
  */
 abstract class Base_Assets_Credits extends Db_Row
 {
@@ -100,7 +100,7 @@ abstract class Base_Assets_Credits extends Db_Row
 	/**
 	 * @property $updatedTime
 	 * @type string|Db_Expression
-	 * @default "0000-00-00 00:00:00"
+	 * @default new Db_Expression("CURRENT_TIMESTAMP")
 	 * 
 	 */
 	/**
@@ -945,7 +945,7 @@ return array (
   ),
   1 => false,
   2 => '',
-  3 => '0000-00-00 00:00:00',
+  3 => 'CURRENT_TIMESTAMP',
 );			
 	}
 
