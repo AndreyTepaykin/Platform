@@ -129,7 +129,7 @@
 
 		// add styles
 		Q.addStylesheet('{{Q}}/css/pdf.css');
-		Q.addStylesheet('{{Streams}}/css/tools/pdf_preview.css');
+		Q.addStylesheet('{{Streams}}/css/tools/previews.css');
 	},
 
 	{
