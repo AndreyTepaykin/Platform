@@ -60,9 +60,9 @@
 				}
 			}
 
-			var refresh = function () {
+			var refresh = Q.debounce(function () {
 				tool.refresh();
-			};
+			});
 			Q.onPopState.set(refresh, tool);
 			Q.Page.onPush.set(refresh, tool);
 
@@ -73,9 +73,10 @@
 
 			tool.$tabs = tool.$('.Q_tabs_tab').css('visibility', 'hidden');
 			setTimeout(function () {
-				Q.onLayout(tool).set(Q.throttle(function () {
+				Q.onLayout(tool).add(Q.throttle(function () {
 					tool.refresh();
 				}, 100, true), tool);
+				tool.refresh();
 			}, 100);
 			Q.handle(state.onActivate, tool, [state.tab, tool.getName(state.tab)]);
 		},
@@ -593,7 +594,7 @@
 				// 	return;
 				// }
 				tool.$overflow = $overflow;
-				Q.addScript("{{Q}}/js/contextual", function () {
+				Q.addScript("{{Q}}/js/contextual.js", function () {
 					var elements = [];
 					for (var i=index+1; i<$tabs.length; ++i) {
 						elements.push($tabs[i]);
