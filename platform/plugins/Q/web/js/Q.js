@@ -5450,7 +5450,25 @@ function Q_Cache_set(cache, key, obj, special) {
 		}
 		var serialized = JSON.stringify(obj);
 		var storage = cache.localStorage ? localStorage : (cache.sessionStorage ? sessionStorage : null);
-		storage.setItem(cache.name + (special===true ? "\t" : "\t\t") + key, serialized);
+		var id = cache.name + (special===true ? "\t" : "\t\t") + key;
+		try {
+			storage.setItem(id, serialized);
+		} catch (e) {
+			if (!special) {
+				for (var i=0; i<10; ++i) {
+					try {
+						// try to remove up to 10 items it may be a problem with space
+						if (cache.remove(cache.earliest())) {
+							storage.setItem(id, serialized);
+						}
+						break;
+					} catch (e) {
+		
+					}
+				}
+			}
+		}
+		
 	}
 }
 function Q_Cache_remove(cache, key, special) {
@@ -5607,7 +5625,7 @@ Cp.remove = function _Q_Cache_prototype_remove(key) {
 	if (typeof key !== 'string') {
 		key = Q.Cache.key(key);
 	}
-	existing = this.get(key, true);
+	existing = this.get(key, {dontTouch: true});
 	if (!existing) {
 		return false;
 	}
