@@ -671,12 +671,6 @@
 				var usingPlatforms = (o.using.indexOf('facebook') >= 0)
 					? {facebook: appId}
 					: {};
-
-				// if iOS allow signIn with apple
-				if (Q.info.platform === 'ios') {
-					usingPlatforms.ios = appId;
-				}
-
 				// set up dialog
 				login_setupDialog(usingPlatforms, o);
 				priv.linkToken = null;
@@ -1523,9 +1517,10 @@
 		var $a = $('<a id="Users_login_go" class="Q_button Q_main_button" />')
 			.append(
 				$('<span id="Users_login_go_span">' + Q.text.Users.login.goButton + '</span>')
-			).on(Q.Pointer.fastclick, function (e) {
-				e.preventDefault(); // prevent automatic submit on click
+			).on(Q.Pointer.touchclick, function () {
 				submitClosestForm.apply($a, arguments);
+			}).on(Q.Pointer.click, function (e) {
+				e.preventDefault(); // prevent automatic submit on click
 			});
 
 		var directions = Q.plugins.Users.login.serverOptions.noRegister
@@ -1625,28 +1620,8 @@
 					// can trigger a popup directly, otherwise popup blockers may complain:
 					Q.addScript('https://connect.facebook.net/en_US/sdk.js');
 					break;
-				case 'ios':
-					var appleLoginServiceId = Q.getObject(['ios', appId, 'appleLoginServiceId'], Users.apps);
-					if (!appleLoginServiceId) {
-						console.warn("Users.login: missing Users.apps.ios." + appId + ".appId");
-						break;
-					}
-					$('<div id="appleid-signin" data-color="black" data-border="true" data-type="sign in">').appendTo(step1_usingPlatforms_div);
-					// need to wait till "appleid-signin" element rendered
-					setTimeout(function () {
-						AppleID.auth.init({
-							clientId: appleLoginServiceId,
-							scope: 'name email',
-							redirectURI: Q.url("appleLogin"),
-							state: Q.nonce,
-							//nonce: Q.nonce,
-							usePopup : false // if true you can handle with auth on client
-						});
-					}, 0);
-					break;
 			}
 		}
-
 		if (platformCount) {
 			step1_div.append(step1_usingPlatforms_div);
 		}
@@ -2145,16 +2120,25 @@
 		 * @param {String} [options.redirect_uri] You can override the redirect URI.
 		 *    Often this has to be added to a whitelist on the platform's side.
 		 * @param {String} [options.response_type='code']
+		 * @param {String} [options.state=Math.random()] If state was not provided, this
+		 *    method also modifies the passed options object and sets options.state on it
 		 * @return {String} The URL to redirect to or open in a window
 		 */
 		url: function (authorizeUri, client_id, scope, options) {
 			options = options || {};
-			var redirectUri = options.redirectUri || Users.OAuth.redirectUri;
 			var responseType = options.responseType || 'code';
+			var redirectUri = options.redirectUri || Users.OAuth.redirectUri;
+			if (options.openWindow) {
+				redirectUri = Q.url(redirectUri + '?openWindow=1');
+			}
+			if (!options.state) {
+				options.state = String(Math.random());
+			}
+			Q.cookie('Users_latest_oAuth_state', options.state);
 			Q.url(authorizeUri, {
 				client_id: client_id,
 				redirect_uri: redirectUri,
-				state: Q.nonce,
+				state: options.state,
 				response_type: responseType,
 				scope: scope
 			});
@@ -2178,6 +2162,8 @@
 		 * @param {String} [options.redirect_uri] You can override the redirect URI.
 		 *    Often this has to be added to a whitelist on the platform's side.
 		 * @param {String} [options.response_type='code']
+		 * @param {String} [options.state=Math.random()] If state was not provided, this
+		 *    method also modifies the passed options object and sets options.state on it
 		 * @return {String}
 		 */
 		start: function (platform, scope, callback, options) {
@@ -2191,7 +2177,10 @@
 				throw new Q.Exception("Users.OAuth.start: authorizeUri is empty");
 			}
 			var redirectUri = options.redirectUri || Users.OAuth.redirectUri;
-			var responseType = options.response_typeeType || 'code';
+			var responseType = options.responseType || 'code';
+			if (!options.state) {
+				options.state = String(Math.random());
+			}
 			if (!('openWindow' in options)) {
 				options.openWindow = {};
 			}
@@ -2200,6 +2189,7 @@
 				platform: platform,
 				appId: appId,
 				scope: scope,
+				state: options.state,
 				finalRedirect: finalRedirect
 			}));
 			var url = OAuth.url(authorizeUri, appId, scope, options);
@@ -2223,6 +2213,18 @@
 		}
 	};
 	
+	/**
+	 * Constructs a contact from fields, which are typically returned from the server.
+	 * @class Users.Contact
+	 * @constructor
+	 * @param {Object} fields
+	 */
+	var Contact = Users.Contact = function Users_Contact(fields) {
+		Q.extend(this, fields);
+		this.typename = 'Q.Users.Contact';
+	};
+	var Cp = Contact.prototype;
+
 	/**
 	 * Constructs a contact from fields, which are typically returned from the server.
 	 * @class Users.Contact
