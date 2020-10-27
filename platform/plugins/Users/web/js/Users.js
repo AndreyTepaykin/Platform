@@ -1517,8 +1517,8 @@
 		var $a = $('<a id="Users_login_go" class="Q_button Q_main_button" />')
 			.append(
 				$('<span id="Users_login_go_span">' + Q.text.Users.login.goButton + '</span>')
-			).on(Q.Pointer.touchclick, function () {
-				submitClosestForm.apply($a, arguments);
+			).on(Q.Pointer.touchclick, function (e) {
+				Users.submitClosestForm.apply(this, arguments);
 			}).on(Q.Pointer.click, function (e) {
 				e.preventDefault(); // prevent automatic submit on click
 			});
