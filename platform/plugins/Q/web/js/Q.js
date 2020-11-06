@@ -10875,6 +10875,18 @@ Q.jQueryPluginPlugin = function _Q_jQueryPluginPlugin() {
 		});
 	};
 	$.fn.andSelf = $.fn.addBack || $.fn.andSelf;
+
+	var htmlOriginal = $.fn.html;
+	$.fn.html = function () {
+		var args = Array.prototype.slice.call(arguments, 0);
+		if (args.pop() === true) {
+			this.each(function () {
+				Q.Tool.clear(this);
+			});
+			return htmlOriginal.apply(this, args);
+		}
+		return htmlOriginal.apply(this, arguments);
+	};
 	
 	Q.each({
 		'on': 'off',
@@ -10996,7 +11008,6 @@ Q.info = {
 	isStandalone: detected.isStandalone,
 	isCordova: _isCordova,
 	platform: detected.OS,
-	baseUrl: location.protocol + '//' + location.host,
 	browser: detected,
 	isIE: function (minVersion, maxVersion) {
 		return Q.info.browser.name === 'explorer'
