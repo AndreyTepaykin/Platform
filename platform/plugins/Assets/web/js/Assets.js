@@ -1079,14 +1079,16 @@
 	function _redirectToBrowserTab(options) {
 		var url = new URL(document.location.href);
 		url.searchParams.set('browsertab', 'yes');
-		url.searchParams.set('scheme', Q.info.scheme);
-		url.searchParams.set('paymentOptions', JSON.stringify({
+		var paymentOptions = {
 			amount: options.amount,
 			email: options.email,
 			userId: Q.Users.loggedInUserId(),
 			currency: options.currency
-		}));
-		cordova.plugins.browsertab.openUrl(url.toString(), {scheme: Q.info.scheme}, function(successResp) {
+		};
+		url.searchParams.set('paymentOptions', JSON.stringify(paymentOptions));
+		cordova.plugins.browsertab.openUrl(url.toString(), {
+			scheme: Q.info.scheme
+		}, function(successResp) {
 			Q.handle(options.onSuccess, null, [successResp]);
 		}, function(err) {
 			Q.handle(options.onFailure, null, [err]);
@@ -1099,15 +1101,9 @@
 			try {
 				var paymentOptions = JSON.parse(params.get('paymentOptions'));
 			} catch(err) {
-				console.warn("Undefined payment options");
+				console.warn('Undefined payment options');
 				throw(err);
 			}
-
-			if (Q.isEmpty(paymentOptions)) {
-				return console.warn("Undefined payment options");
-			}
-
-			var scheme = params.get('scheme');
 
 			// need Stripe lib for safari browserTab
 			Q.Assets.Payments.load(function () {
@@ -1125,20 +1121,14 @@
 							} else if (err) {
 								$error.show();
 							} else {
-								// if scheme defined, redirect to scheme to close browsertab
-								scheme && (location.href = scheme);
 								$info.show();
 							}
 						});
 					});
 				} else {
-					Q.Assets.Payments.stripe(paymentOptions, function () {
-						if (scheme) {
-							location.href = scheme
-						} else {
-							window.close();
-						}
-					});
+					Q.Assets.Payments.stripe(paymentOptions, function(){
+						window.close();
+					})
 				}
 			});
 		};
@@ -1173,7 +1163,7 @@
 				}
 
 				// open browsertab for cordova
-				var browsertab = Q.getObject("cordova.plugins.browsertab");
+				var browsertab = Q.getObject("cordova.plugins.browsertabs");
 				if (browsertab) {
 					return browsertab.openUrl(redirectUrl);
 				}
