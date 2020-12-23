@@ -12,7 +12,7 @@
             var state = this.state;
             tool.preview = preview;
 			
-			preview.state.editable = false;
+			preview.state.editable = state.editable;
 
             //preview.state.creatable.preprocess = tool.composer.bind(this);
 
@@ -30,6 +30,7 @@
         },
 
         {
+			editable: false,
 			templates: {
 				view: {
 					name: 'Streams/webrtc/preview/view',
