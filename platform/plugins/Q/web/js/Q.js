@@ -9733,7 +9733,9 @@ Q.baseUrl = function _Q_host(where) {
 Q.baseUrl.routers = []; // functions returning a custom url
 
 /**
- * Given an index and field values, returns the hostname and port for connecting to a Node.js server running Q
+ * Given some optional input identifying objects in the system,
+ * returns the hostname and port for connecting to a Qbix Node.js server
+ * set up for working with those objects.
  * @static
  * @method nodeUrl
  * @param {Object} where
@@ -13057,7 +13059,7 @@ Q.Audio.speak = function (text, options) {
 		Q.Text.get(source, function (err, content) {
 			var text = Q.getObject(pathArray, content);
 			if (text) {
-				_proceed(text)
+				_proceed(text);
 			}
 		});
 	} else {
@@ -13117,6 +13119,7 @@ Q.Audio.speak = function (text, options) {
 		if (typeof text !== "string") {
 			throw new Q.Error("Q.Audio.speak: the text for speech must be a string");
 		}
+		text = text.interpolate(Q.text);
 
 		if (root.TTS) {
 			TTS.speak({
