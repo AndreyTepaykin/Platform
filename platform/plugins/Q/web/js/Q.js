@@ -13459,7 +13459,7 @@ Q.Masks = {
 				'bottom': rect.bottom
 			};
 			if (!mask.shouldCover) {
-				mask.rect = Q.Pointer.boundingRect(document.body, ['Q_mask']);
+				//mask.rect = Q.Pointer.boundingRect(document.body, ['Q_mask']);
 			}
 			if (mask.rect.top < 0) {
 				mask.rect.top = 0;
