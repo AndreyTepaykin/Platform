@@ -6,7 +6,10 @@
      * @class Streams/webrtc/preview
      * @constructor
      * @param {Object} [options] options to pass besides the ones to Streams/preview tool
-     */
+	 * @param {Q.Event} [options.onWebRTCRoomCreated]
+	 * @param {Q.Event} [options.onWebrtcControlsCreated]
+	 * @param {Q.Event} [options.onWebRTCRoomEnded]
+	 */
     Q.Tool.define("Streams/webrtc/preview", ["Streams/preview"], function _Streams_webrtc_preview (options, preview) {
             var tool = this;
             var state = this.state;
@@ -29,15 +32,18 @@
             });
         },
 
-        {
+{
 			editable: false,
 			templates: {
 				view: {
 					name: 'Streams/webrtc/preview/view',
 					fields: { alt: 'icon', titleClass: '', titleTag: 'h3' }
 				}
-			}
-        },
+			},
+			onWebRTCRoomCreated: new Q.Event(),
+			onWebrtcControlsCreated: new Q.Event(),
+			onWebRTCRoomEnded: new Q.Event()
+		},
 
 {
         refresh: function (stream) {
@@ -110,10 +116,16 @@
                     startWith: {video: false, audio: true},
                     onWebRTCRoomCreated: function() {
                         console.log('onWebRTCRoomCreated', this);
+                        Q.handle(state.onWebRTCRoomCreated, tool, [WebConference]);
                     },
                     onWebrtcControlsCreated: function() {
                         console.log('onWebrtcControlsCreated', this);
-                    }
+						Q.handle(state.onWebrtcControlsCreated, tool, [WebConference]);
+                    },
+					onWebRTCRoomEnded: function () {
+						console.log('onWebRTCRoomEnded', this);
+						Q.handle(state.onWebRTCRoomEnded, tool, [WebConference]);
+					}
                 });
             });
         }
