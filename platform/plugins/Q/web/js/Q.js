@@ -8301,15 +8301,17 @@ Q.addStylesheet = function _Q_addStylesheet(href, media, onload, options) {
 	}
 	options.info = {};
 	href = Q.url(href, null, options);
-	if (!media) media = 'screen,print';
-	var links = document.getElementsByTagName('link');
-	var i, e, h, m;
 	var href2 = href.split('?')[0];
+	if (!media) media = 'screen,print';
+	var insertBefore = null;
+	var links = document.getElementsByTagName('link');
+	var i, e, h, m, p;
 	for (i=0; i<links.length; ++i) {
 		e = links[i];
 		m = e.getAttribute('media');
 		h = e.getAttribute('href');
-		if ((m && m !== media) || h.split('?')[0] !== href2) {
+		if ((m && m !== media)
+		|| (h !== href && h !== href2)) {
 			continue;
 		}
 		// A link element with this media and href is already found in the document.
@@ -9027,7 +9029,8 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 									var stylesheets = response.stylesheets[slot];
 									for (var i=0, l=stylesheets.length; i<l; ++i) {
 										var stylesheet = stylesheets[i];
-										if (stylesheet.href.split("?")[0] === e.href.split("?")[0]
+										var sh = stylesheet.href, eh = e.href;
+										if ((sh && sh.split('?')[0]) === (eh && eh.split('?')[0])
 										&& (!stylesheet.media || stylesheet.media === e.media)) {
 											found = true;
 											break;
@@ -13478,7 +13481,7 @@ Q.Masks = {
 				'bottom': rect.bottom
 			};
 			if (!mask.shouldCover) {
-				//mask.rect = Q.Pointer.boundingRect(document.body, ['Q_mask']);
+				mask.rect = Q.Pointer.boundingRect(document.body, ['Q_mask']);
 			}
 			if (mask.rect.top < 0) {
 				mask.rect.top = 0;
