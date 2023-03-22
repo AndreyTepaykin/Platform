@@ -10,6 +10,7 @@
  * @constructor
  * @param {Object} options Override various options for this tool
  * @param {String} options.recipientUserId - id of user to whom the tokens should be sent
+ * @param {Q.Event} options.onSubmitted - when signed transaction is submitted to the mempool to be mined
  */
 
 Q.Tool.define("Assets/web3/transfer", function (options) {
@@ -39,7 +40,8 @@ Q.Tool.define("Assets/web3/transfer", function (options) {
     { // default options here
         action: "send",
         tokenInfo: null,
-        chainId: Q.getObject("Web3.defaultChain.chainId", Q.Assets)
+        chainId: Q.getObject("Web3.defaultChain.chainId", Q.Assets),
+        onSubmitted: new Q.Event()
     },
 
     { // methods go here
@@ -119,7 +121,18 @@ Q.Tool.define("Assets/web3/transfer", function (options) {
                         return Q.alert(tool.text.errors.WalletInvalid);
                     }
 
-                    Q.Users.Web3.getContract("Assets/templates/R3/CommunityCoin/contract", {
+                    var parsedAmount = ethers.utils.parseUnits(String(amount), state.tokenInfo.decimals);
+
+                    if (state.tokenInfo.tokenAddress == Q.Users.Web3.zeroAddress){
+                        Q.Users.Web3.transaction(walletSelected, amount, function (err, transaction) {
+                            Q.handle(state.onSubmitted, tool, [err, transaction]);
+                        }, {
+                            chainId: state.chainId
+                        });
+                        return;
+                    }
+
+                    Q.Users.Web3.getContract("Assets/templates/ERC20", {
                         chainId: state.chainId,
                         contractAddress: state.tokenInfo.tokenAddress,
                         readOnly: false
@@ -144,7 +157,7 @@ Q.Tool.define("Assets/web3/transfer", function (options) {
                             contract.off(_assets_web3_transfer_listener);
                         });
 
-                        contract.transfer(walletSelected, ethers.utils.parseUnits(String(amount), state.tokenInfo.decimals)).then(function (info) {
+                        contract.transfer(walletSelected, parsedAmount).then(function (info) {
 
                         }, function (err) {
                             $this.removeClass("Q_working");
