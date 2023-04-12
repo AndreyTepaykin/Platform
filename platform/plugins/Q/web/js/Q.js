@@ -3640,12 +3640,12 @@ Pp.fill = function _Q_pipe_fill(field, ignore) {
 	var pipe = this;
 
 	return function _Q_pipe_fill() {
+		if (pipe.internal && pipe.internal.progress) {
+			pipe.internal.progress(pipe, field);
+		}
 		pipe.params[field] = Array.prototype.slice.call(arguments);
 		pipe.subjects[field] = this;
 		pipe.run(field);
-		if (pipe.internal && pipe.Animationinternal.progress) {
-			pipe.internal.progress(this, field);
-		}
 	};
 };
 
@@ -8991,6 +8991,7 @@ Q.findScript = function (src) {
 /**
  * Gets information about the currently running script.
  * Only works when called synchronously when the script loads.
+ * Returns script src without "?querystring"
  * @method currentScript
  * @static
  * @param {Number} [stackLevels=0] If called within a function
@@ -9012,7 +9013,8 @@ Q.currentScript = function (stackLevels) {
 	}
 	parts = lines[index].match(/((http[s]?:\/\/.+\/)([^\/]+\.js.*?)):/);
 	return {
-		src: parts[1],
+		src: parts[1].split('?')[0],
+		srcWithQuerystring: parts[1],
 		path: parts[2],
 		file: parts[3]
 	};
@@ -9051,10 +9053,11 @@ Q.require = function (src, callback) {
 		}, 0);
 	} else {
 		Q.addScript(src, function _Q_require_callback(err) {
-			if (!(src in _exports)) {
-				_exports[src] = [];
-			}
-			Q.handle(callback, Q, _exports[src]);
+			var srcWithoutQuerystring = src.split('?')[0];
+			var param = _exports[src]
+				|| _exports[srcWithoutQuerystring]
+				|| [];
+			Q.handle(callback, Q, param);
 		});
 	}
 };
