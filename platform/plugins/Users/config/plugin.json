@@ -175,6 +175,9 @@
 			"timeout": 5,
 			"contact": true
 		},
+		"email": {
+			"head": "<style> a { font-weight: bold; } </style>"
+		},
 		"mobile": {
 			"gateways": {
 				"at&t": "txt.att.net",
@@ -401,6 +404,11 @@
 				"limit": 100
 			},
 			"randomAngles": false
+		},
+		"bots": {
+			"defaults": {
+				"email": "bot+{{random}}@engageusers.ai"
+			}
 		}
 	}
 }
