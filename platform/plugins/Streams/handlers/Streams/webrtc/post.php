@@ -323,6 +323,10 @@ function Streams_webrtc_post($params = array())
         $webrtcStream = $webrtc->getRoomStream($publisherId, $roomId, $resumeClosed, $writeLevel);
     }
 
+    if (!$webrtcStream->testReadLevel("max")) {
+        throw new Exception('Access denied');
+    }
+
     $response['stream'] = $webrtcStream;
     $response['roomId'] = $webrtcStream->name;
 
