@@ -5232,12 +5232,16 @@ abstract class Streams extends Base_Streams
 	 * @static
 	 * @param {string} $publisherId
 	 * @param {array} $updates pairs of (oldStreamName => newStreamName)
+	 * @param {boolean} [$accumulateErrors=false] set to true to keep going
+	 *  even if an update fails, accumulating errors
+	 * @return {array} any errors that have accumulated, if accumulateErrors is true, otherwise empty array
 	 */
-	static function updateStreamNames($publisherId, array $updates)
+	static function updateStreamNames($publisherId, array $updates, $accumulateErrors = false)
 	{
 		$chunkSize = 100;
 		$chunks = array_chunk($updates, $chunkSize, true);
 		$transactionKey = Q_Utils::randomString(10);
+		$errors = array();
 		Streams_Stream::begin(null, $transactionKey)->execute();
 		// can be rolled back on any exception
 		$fields = array(
@@ -5275,27 +5279,39 @@ abstract class Streams extends Base_Streams
 				foreach ($fields as $i => $field) {
 					$publisherIdField = Q::ifset($publisherIdFields, $Connection, $Table, $i, 'publisherId');
 					foreach ($chunks as $chunk) {
-						$criteria = isset($publisherId)
-						? array(
-							$publisherIdField => $publisherId,
-							$field => array_keys($chunk)
-						) : array($field => array_keys($chunk));
-						call_user_func(array($ClassName, 'update'))
+						$criteria = array($field => array_keys($chunk));
+						if (isset($publisherId)) {
+							$criteria[$publisherIdField] = $publisherId;
+						}
+						try {
+							call_user_func(array($ClassName, 'update'))
 							->set(array($field => $chunk))
 							->where($criteria)
 							->execute();
+						} catch (Exception $e) {
+							if ($accumulateErrors) {
+								$errors[] = $e;
+							} else {
+								throw $e;
+							}
+						}
 					}
 				}
 			}
 		}
+		$params = compact('publisherId', 'updates', 'accumulateErrors', 'chunks', 'fields', 'publisherIdFields');
+		$params['errors'] =& $errors;
 		/**
 		 * Gives any plugin or app a chance to update stream names in its own tables
 		 * @event Streams/updateStreamNames
 		 * @param {array} $publisherId
 		 * @param {array} $updates an array of (oldStreamName => newStreamName) pairs
+		 * @param {boolean} [$accumulateErrors=false] if true, accumulate errors and keep going
+		 * @param {boolean} [$errors=array()] reference to an array to push errors here
 		 */
-		Q::event('Streams/updateStreamNames', compact('publisherId', 'updates', 'chunks', 'fields', 'publisherIdFields'), 'after');
+		Q::event('Streams/updateStreamNames', $params, 'after');
 		Streams_Stream::commit($transactionKey)->execute();
+		return $errors;
 	}
 
 	/**
