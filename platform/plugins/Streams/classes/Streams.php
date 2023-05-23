@@ -136,7 +136,7 @@ abstract class Streams extends Base_Streams
 	 * @final
 	 */
 	/**
-	 * Can update properties of relations directly, and unrelate
+	 * Can update weights and properties of relations directly, and unrelate
 	 * @property $WRITE_LEVEL['relations']
 	 * @type integer
 	 * @default 25
@@ -3873,10 +3873,15 @@ abstract class Streams extends Base_Streams
 		$icon = Q::ifset($options, 'icon', null);
 
 		foreach ($raw_userIds as $userId) {
-			Users_Contact::addContact($asUserId, "Streams/invited", $userId, null, false, true);
-			Users_Contact::addContact($asUserId, "Streams/invited/{$stream->type}", $userId, null, false, true);
-			Users_Contact::addContact($userId, "Streams/invitedMe", $asUserId, null, false, true);
-			Users_Contact::addContact($userId, "Streams/invitedMe/{$stream->type}", $asUserId, null, false, true);
+			if (!Users::isCommunityId($asUserId) or $asUserId !== $publisherId) {
+				// For now, don't add labels to community itself
+				// for just inviting the user to its own published streams.
+				// TODO: Debate the merits of this approach.
+				Users_Contact::addContact($asUserId, "Streams/invited", $userId, null, false, true);
+				Users_Contact::addContact($asUserId, "Streams/invited/{$stream->type}", $userId, null, false, true);
+				Users_Contact::addContact($userId, "Streams/invitedMe", $asUserId, null, false, true);
+				Users_Contact::addContact($userId, "Streams/invitedMe/{$stream->type}", $asUserId, null, false, true);
+			}
 			if ($addMyLabel) {
 				$myLabels = Q::isAssociative($addMyLabel) ? array_keys($addMyLabel) : $addMyLabel;
 				Users_Contact::addContact($asUserId, $myLabels, $userId, null, $asUserId2, true);

@@ -188,7 +188,7 @@ Streams.READ_LEVEL = {
  * @final
  */
 /**
- * Can update properties of relations directly
+ * Can update weights and relations directly
  * @property WRITE_LEVEL.relations
  * @type integer
  * @default 25
@@ -238,7 +238,7 @@ Streams.WRITE_LEVEL = {
 	'contribute':	18,		// can contribute to the stream (e.g. "join the stage")
 	'post':			20,		// can post messages which take effect immediately
 	'relate':	    23,		// can relate other streams to this one
-	'relations':	25,		// can update properties of relations directly
+	'relations':	25,		// can update weights and relations directly
 	'edit':			30,		// can edit stream content immediately
 	'closePending':	35,		// can post a message requesting to close the stream
 	'close':		40,		// don't delete, just prevent any new changes to stream
@@ -880,7 +880,7 @@ var _Streams_batchFunction_options = {
  *   @param {String} [related.publisherId] the id of whoever is publishing the related stream
  *   @param {String} [related.streamName] the name of the related stream
  *   @param {Mixed} [related.type] the type of the relation
- *   @param {Mixed} [related.weight] the type of the relation
+ *   @param {Mixed} [related.weight=1] the weight of the relation, if user has at least testWriteLevel('relations')
  * @param {Object} [options] Any extra options involved in creating the stream
  *   @param {Object} [options.fields] Used to override any other fields passed in the request
  *   @param {Object} [options.streamName] Overrides fields.name . You can set a specific stream name from Streams/possibleUserStreams config
@@ -2180,7 +2180,10 @@ Streams.followup.options = {
  * @param {String} streamName
  *	Name of the stream to/from which the others are related
  * @param {String|Array|null} relationType the type of the relation
- * @param {boolean} isCategory defaults to false. If true, then gets streams related TO this stream.
+ * @param {boolean|String} [isCategory=true]
+ *  If false, returns the categories that this stream is related to.
+ *  If true, returns all the streams this related to this category.
+ *  If a string, returns all the streams related to this category with names prefixed by this string.
  * @param {Object} [options] optional object that can include:
  *   @param {Number} [options.limit] the maximum number of results to return
  *   @param {Number} [options.offset] the page offset that goes with the limit
@@ -2214,6 +2217,9 @@ Streams.related = function _Streams_related(publisherId, streamName, relationTyp
 		callback = options;
 		options = isCategory;
 		isCategory = undefined;
+	}
+	if (isCategory === undefined) {
+		isCategory = true;
 	}
 	if (Q.typeOf(options) === 'function') {
 		callback = options;
@@ -4374,7 +4380,7 @@ Mp.getInstruction = function _Message_prototype_getInstruction (instructionName)
  *
  * @method seen
  * @param {Number|Boolean} [messageTotal] Pass the total messages seen of this type.
- *  Or, pass true to set the latest messageTotal if any was cached, otherwise do nothing.
+ *  Or, passing true sets the latest messageTotal if any was cached, or if not cached does nothing.
  * @return {Number|false}
  */
 Mp.seen = function _Message_seen (messageTotal) {
