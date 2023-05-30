@@ -471,14 +471,13 @@ Sp.notifyObservers = function (event, byUserId, messageOrEphemeral) {
 	Streams.getObservers(fields.publisherId, fields.name, function (observers) {
 		var p = Object.getPrototypeOf(messageOrEphemeral);
 		var f;
-		if (p.className === 'Streams_Message') { // a Streams_Ephemeral
-			messageOrEphemeral.fields.streamType = fields.type;
-			f = messageOrEphemeral.getFields();
-		} else { // a Streams_Ephemeral
-			f = messageOrEphemeral.payload;
-		}
 		for (var clientId in observers) {
-			observers[clientId].emit(event, messageOrEphemeral, byUserId, stream);
+			observers[clientId].emit(event, messageOrEphemeral.getFields(), byUserId, {
+				publisherId: stream.fields.publisherId,
+				streamName: stream.fields.name,
+				streamType: stream.fields.type,
+				messageCount: stream.fields.messageCount
+			});
 		}
 	});
 };
@@ -788,9 +787,9 @@ Sp.testAdminLevel = function(level, callback) {
 	return testLevel (this, 'adminLevel', 'ADMIN_LEVEL', level, callback);
 };
 /**
- * Verifies whether the user has at least the given permission
+ * Verifies whether the user has all of the given permissions
  * @method testPermission
- * @param {String|Array} permission The name of the permission
+ * @param {String|Array} permission The name(s) of the permission(s)
  * @param callback=null {function}
  *	Callback receives "error" and boolean as arguments - whether the access is granted.
  * @return {Boolean}
@@ -830,7 +829,7 @@ Sp.testPermission = function(permission, callback)
 		} else {
 			var permissions = subj.get('permissions', []);
 			var result = (permissions.indexOf(permission) >= 0);
-			callback && callback.call(subj, null, true);
+			callback && callback.call(subj, null, result);
 		}
 	});
 	return false;
@@ -1269,7 +1268,9 @@ Sp.notify = function(participant, event, messageOrEphemeral, byUserId, callback)
 			var p = Object.getPrototypeOf(messageOrEphemeral);
 			// 2) if user has socket connected - emit socket message and quit
 			if (online) {
-				Users.Socket.emitToUser(userId, event, messageOrEphemeral, byUserId, {
+				Users.Socket.emitToUser(userId, event, messageOrEphemeral.getFields(), byUserId, {
+					publisherId: stream.fields.publisherId,
+					streamName: stream.fields.name,
 					streamType: stream.fields.type,
 					messageCount: stream.fields.messageCount
 				});

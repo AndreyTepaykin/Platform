@@ -962,7 +962,7 @@ class Q_Html
 		$attributes = array())
 	{
 		if (empty($attributes['type'])) {
-			$attributes['type'] = 'application/javascript';
+			$attributes['type'] = 'text/javascript';
 		}
 		if (!isset($attributes['cdata'])) {
 			$attributes['cdata'] = true;
@@ -1182,7 +1182,7 @@ class Q_Html
 					'dir' => '/'
 				),
 				'script' => array(
-					'type' => 'application/javascript'
+					'type' => 'text/javascript'
 				),
 				'style' => array(
 					'type' => 'text/css'
@@ -1473,6 +1473,7 @@ class Q_Html
 			}
 			list($url, $hash) = Q_Uri::cachedUrlAndHash($url);
 		}
+		$url = Q_Uri::proxySource($url);
 		return array($url, $filename, $hash);
 	}
 	
@@ -1484,6 +1485,7 @@ class Q_Html
 	 * @param {array} [$options=array()]
 	 * @param {boolean} [$options.ignoreEnvironment=false] If true, doesn't apply environment transformations
 	 * @param {string} [$options.hash=null] If URL was already processed with cachedUrlAndCache, set hash here to avoid calling it again
+	 * @param {boolean} [$options.baseUrlPlaceholder=false] Pass true to have {{baseUrl}} placeholder instead of base URL in the string
 	 * @return {string} The themed url.
 	 */
 	static function themedUrl($filePath, $options = array())

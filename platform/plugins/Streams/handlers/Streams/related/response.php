@@ -59,8 +59,10 @@ function Streams_related_response()
 	}
 	if ($streams_requested) {
 		$rel = Db::exportArray($result[0], $exportOptions);
+		$stream = $result[2];
 	} else {
 		$rel = Db::exportArray($result, $exportOptions);
+		$stream = Streams_Stream::fetch($asUserId, $publisherId, $streamName);
 	}
 
 	if (!empty($_REQUEST['omitRedundantInfo'])) {
@@ -81,9 +83,9 @@ function Streams_related_response()
 	if ($streams_requested) {
 		$streams = $result[1];
 		$arr = Db::exportArray($streams, array('numeric' => true));
-		foreach ($arr as $k => $stream) {
-			if (!$stream) continue;
-			$s = $streams[$stream['name']];
+		foreach ($arr as $k => $v) {
+			if (!$v) continue;
+			$s = $streams[$v['name']];
 			$arr[$k]['access'] = array(
 				'readLevel' => $s->get('readLevel', $s->readLevel),
 				'writeLevel' => $s->get('writeLevel', $s->writeLevel),
@@ -93,7 +95,6 @@ function Streams_related_response()
 		Q_Response::setSlot('relatedStreams', $arr);
 	}
 
-	$stream = $result[2];
 	if (is_array($stream)) {
 		Q_Response::setSlot('streams', Db::exportArray($stream));
 		return;

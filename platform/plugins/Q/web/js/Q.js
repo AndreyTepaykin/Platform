@@ -7130,7 +7130,7 @@ Q.fixedOffset = function (from, filter) {
 };
 
 /**
- * Remove an element from the DOM and try to clean up memory as much as possible
+ * Remove an element from the DOM and try to clean up tools and jQuery plugins as much as possible
  * @static
  * @method removeElement
  * @param {HTMLElement|Array} element, or array of elements, or object of elements
@@ -7169,6 +7169,110 @@ Q.removeElement = function _Q_removeElement(element, removeTools) {
 	} catch (e) {
 		// Old IE doesn't like this
 	}
+};
+
+/**
+ * Replaces the contents of an element and does the right thing with all the tools in it
+ * @static
+ * @method replace
+ * @param {HTMLElement} container
+ *  A existing HTMLElement whose contents are to be replaced with the source
+ *  Tools found in the existing DOM which have data-Q-retain attribute
+ *  are actually retained unless the tool replacing them has a data-Q-replace attribute.
+ *  You can update the tool by implementing a handler for
+ *  tool.Q.onRetain, which receives the old Q.Tool object, the new options and incoming element.
+ *  After the event is handled, the tool's state will be extended with these new options.
+ * @param {Element|String|DocumentFragment} source
+ *  An HTML string or a Element or DocumentFragment which is not part of the DOM.
+ *  If an element, it is treated as a document fragment, and its contents are used to replace the container's contents.
+ * @param {Object} options
+ *  Optional. A hash of options, including:
+ * @param {Array} [options.replaceElements] array of elements or ids of elements in the document to replace, even if they have "data-q-retain" attributes.
+ * @param {boolean} [options.animation] To animate the transition, pass an object here with optional "duration", "ease" and "callback" properties.
+ * @return {HTMLElement|false}
+ *  Returns the container element if successful
+ */
+Q.replace = function _Q_replace(container, source, options) {
+	if (!source) {
+		var c; while (c = container.lastChild) {
+			Q.removeElement(c, true);
+		} // Clear the container
+		return container;
+	}
+	options = Q.extend({}, Q.replace.options, options);
+	if (Q.typeOf(source) === 'string') {
+		var s = document.createElement('div'); // temporary container
+		s.innerHTML = source;
+		source = s;
+	}
+	
+	var replaceElements;
+	if (options.replaceElements) {
+		replaceElements = [];
+		Q.each(options.replaceElements, function (i, e) {
+			replaceElements.push(
+				typeof e === 'string' ? document.getElementById(e) : e
+			);
+		});
+	}
+	if (!source.childNodes) {
+		return false;
+	}
+	
+	var retainedTools = {};
+	var newOptions = {};
+	var incomingElements = {};
+	Q.find(source.childNodes, null, function (incomingElement) {
+		var id = incomingElement.id;
+		var element = id && document.getElementById(id);
+		if (element && element.getAttribute('data-Q-retain') !== null
+		&& !incomingElement.getAttribute('data-Q-replace') !== null
+		&& replaceElements.indexOf(element) < 0) {
+			// If a tool exists with this exact id and has "data-Q-retain",
+			// then re-use it and all its HTML elements, unless
+			// the new tool HTML has data-Q-replace or is in options.replaceElements.
+			// This way tools can avoid doing expensive operations each time
+			// they are replaced and reactivated.
+			incomingElements[incomingElement.id] = incomingElement;
+			incomingElement.parentElement.replaceChild(element, incomingElement);
+			for (var name in element.Q.tools) {
+				var tool = Q.Tool.from(element, name);
+				var attrName = 'data-' + Q.normalize(tool.name, '-');
+				var newOptionsString = incomingElement.getAttribute(attrName);
+				element.setAttribute(attrName, newOptionsString);
+				retainedTools[id] = tool;
+				newOptions[id] = JSON.parse(newOptionsString);
+			}
+		}
+	});
+	
+	Q.beforeReplace.handle(container, source, options, newOptions, retainedTools);
+	
+	var c;
+	while (c = container.lastChild) {
+		Q.removeElement(c, true);
+	} // Clear the container
+	
+	// Move the actual nodes from the source to existing container
+	while (c = source.childNodes[0]) {
+		container.appendChild(c);
+	}
+	
+	for (var id in retainedTools) {
+		var tool = retainedTools[id];
+		var newOpt = newOptions[id];
+		// The tool's constructor not will be called again with the new options.
+		// Instead, implement Q.onRetain, from the tool we decided to retain.
+		// The Q.Tool object still contains all its old properties, options, state.
+		// Its element still contains DOM elements, 
+		// attached jQuery data and events, and more.
+		// However, the element's data-TOOL-NAME attribute now contains
+		// the new options.
+		Q.handle(tool.Q.onRetain, tool, [newOptions, incomingElements[id]]);
+		Q.extend(tool.state, 10, newOptions);
+	}
+	
+	return container;
 };
 
 /**
@@ -8915,12 +9019,12 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 		for (i=0; i<scripts.length; ++i) {
 			script = scripts[i];
 			var s = script.getAttribute('src');
-			if (s !== src && s !== src2) {
+			if (!s || s.split('?')[0] !== src2) {
 				continue;
 			}
 			// move the element to the right container if necessary
 			// hopefully, moving the script element won't change the order of execution
-			p = scripts[i];
+			p = script;
 			var outside = true;
 			while (p = p.parentElement) {
 				if (p === container) {
@@ -8980,7 +9084,7 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 
 	// Create the script tag and insert it into the document
 	script = document.createElement('script');
-	script.setAttribute('type', 'application/javascript');
+	script.setAttribute('type', 'text/javascript');
 	if (options.info.h && !options.skipIntegrity) {
 		if (Q.info.urls && Q.info.urls.integrity) {
 			script.setAttribute('integrity', 'sha256-' + options.info.h);
@@ -9188,7 +9292,7 @@ Q.addStylesheet = function _Q_addStylesheet(href, media, onload, options) {
 		e = links[i];
 		m = e.getAttribute('media');
 		h = e.getAttribute('href');
-		if ((m && m !== media) || h.split('?')[0] !== href2) {
+		if ((m && m !== media) || !h || h.split('?')[0] !== href2) {
 			continue;
 		}
 		// A link element with this media and href is already found in the document.
@@ -9630,110 +9734,6 @@ Q.activate = function _Q_activate(elem, options, callback, internal) {
 		delete elem.Q_activating;
 		Q.handle(Q.onActivate, tool, [elem, options, shared.tools]);
 	}
-};
-
-/**
- * Replaces the contents of an element and does the right thing with all the tools in it
- * @static
- * @method replace
- * @param {HTMLElement} container
- *  A existing HTMLElement whose contents are to be replaced with the source
- *  Tools found in the existing DOM which have data-Q-retain attribute
- *  are actually retained unless the tool replacing them has a data-Q-replace attribute.
- *  You can update the tool by implementing a handler for
- *  tool.Q.onRetain, which receives the old Q.Tool object, the new options and incoming element.
- *  After the event is handled, the tool's state will be extended with these new options.
- * @param {Element|String|DocumentFragment} source
- *  An HTML string or a Element or DocumentFragment which is not part of the DOM.
- *  If an element, it is treated as a document fragment, and its contents are used to replace the container's contents.
- * @param {Object} options
- *  Optional. A hash of options, including:
- * @param {Array} [options.replaceElements] array of elements or ids of elements in the document to replace, even if they have "data-q-retain" attributes.
- * @param {boolean} [options.animation] To animate the transition, pass an object here with optional "duration", "ease" and "callback" properties.
- * @return {HTMLElement|false}
- *  Returns the container element if successful
- */
-Q.replace = function _Q_replace(container, source, options) {
-	if (!source) {
-		var c; while (c = container.lastChild) {
-			Q.removeElement(c, true);
-		} // Clear the container
-		return container;
-	}
-	options = Q.extend({}, Q.replace.options, options);
-	if (Q.typeOf(source) === 'string') {
-		var s = document.createElement('div'); // temporary container
-		s.innerHTML = source;
-		source = s;
-	}
-	
-	var replaceElements;
-	if (options.replaceElements) {
-		replaceElements = [];
-		Q.each(options.replaceElements, function (i, e) {
-			replaceElements.push(
-				typeof e === 'string' ? document.getElementById(e) : e
-			);
-		});
-	}
-	if (!source.childNodes) {
-		return false;
-	}
-	
-	var retainedTools = {};
-	var newOptions = {};
-	var incomingElements = {};
-	Q.find(source.childNodes, null, function (incomingElement) {
-		var id = incomingElement.id;
-		var element = id && document.getElementById(id);
-		if (element && element.getAttribute('data-Q-retain') !== null
-		&& !incomingElement.getAttribute('data-Q-replace') !== null
-		&& replaceElements.indexOf(element) < 0) {
-			// If a tool exists with this exact id and has "data-Q-retain",
-			// then re-use it and all its HTML elements, unless
-			// the new tool HTML has data-Q-replace or is in options.replaceElements.
-			// This way tools can avoid doing expensive operations each time
-			// they are replaced and reactivated.
-			incomingElements[incomingElement.id] = incomingElement;
-			incomingElement.parentElement.replaceChild(element, incomingElement);
-			for (var name in element.Q.tools) {
-				var tool = Q.Tool.from(element, name);
-				var attrName = 'data-' + Q.normalize(tool.name, '-');
-				var newOptionsString = incomingElement.getAttribute(attrName);
-				element.setAttribute(attrName, newOptionsString);
-				retainedTools[id] = tool;
-				newOptions[id] = JSON.parse(newOptionsString);
-			}
-		}
-	});
-	
-	Q.beforeReplace.handle(container, source, options, newOptions, retainedTools);
-	
-	var c;
-	while (c = container.lastChild) {
-		Q.removeElement(c, true);
-	} // Clear the container
-	
-	// Move the actual nodes from the source to existing container
-	while (c = source.childNodes[0]) {
-		container.appendChild(c);
-	}
-	
-	for (var id in retainedTools) {
-		var tool = retainedTools[id];
-		var newOpt = newOptions[id];
-		// The tool's constructor not will be called again with the new options.
-		// Instead, implement Q.onRetain, from the tool we decided to retain.
-		// The Q.Tool object still contains all its old properties, options, state.
-		// Its element still contains DOM elements, 
-		// attached jQuery data and events, and more.
-		// However, the element's data-TOOL-NAME attribute now contains
-		// the new options.
-		Q.handle(tool.Q.onRetain, tool, [newOptions, incomingElements[id]]);
-		Q.extend(tool.state, 10, newOptions);
-	}
-	
-	return container;
 };
 
 /**

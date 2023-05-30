@@ -719,7 +719,8 @@ var _publicStreams = Streams.arePublic.collection = {};
  * @param {String} streamName Name of the stream published by this publisher
  * @param {Function} callback
  *	If there were errors, first parameter is an array of errors.
- *  Otherwise, first parameter is null and second parameter is a Streams.Stream object
+ *  Otherwise, first parameter is null and second parameter is a Streams.Stream object.
+ *  The third parameter can contain more retrieved objects, under keys like "messages" and "participants"
  * @param {object} [extra] Optional object which can include the following keys:
  *   @param {Number|Object} [extra.participants=0] Optionally fetch up to that many participants
  *   @param {Number|Object} [extra.messages=0] Optionally fetch up to that many latest messages
@@ -2334,6 +2335,9 @@ Streams.related = function _Streams_related(publisherId, streamName, relationTyp
 			// Now process all the relations
 			Q.each(data.slots.relations, function (j, relation) {
 				relation[near] = stream;
+				if (options.relationsOnly) {
+					return; // no need to get the related streams
+				}
 				var key = Streams.key(relation[farPublisherId], relation[farStreamName]);
 				if (!keys2[key] && relation[farPublisherId] != publisherId) {
 					// Fetch all the related streams from other publishers
@@ -2401,6 +2405,45 @@ Streams.related.options = {
  * @event related.onError
  */
 Streams.related.onError = new Q.Event();
+
+/**
+ * Get lists of { timestamp, publisherId, streamName }
+ * for displaying countdowns and calling functions like switchTo.
+ * It assumes that the relation weights are timestamps.
+ * @method related.ByTimestamps
+ * @param {String} publisherId publisher of the category stream
+ * @param {String} streamName name of the category stream
+ * @param {String|Array|null} relationType the type of the relation, to filter by if any
+ * @param {Object} options you can pass options to Streams.related here, such as "min" and "max"
+ * @param {Function} callback Receives (err, results) where results is an array
+ *  of objects with keys "timestamp", "publisherId", "streamName"
+ */
+Streams.related.byTimestamps = function(publisherId, streamName, relationType, options, callback) {
+	if (Q.typeOf(options) === 'function') {
+		callback = options;
+		options = {};
+	}
+	var o = Q.extend({}, Streams.related.byTimestamps.options, options, {
+		relationsOnly: true
+	});
+	Q.Streams.related(publisherId, streamName, relationType, true, o,
+	function (err) {
+		var msg = Q.firstErrorMessage(err);
+		if (msg) {
+			Q.handle(callback, null, [msg]);
+			return console.warn(msg);
+		}
+		var results = [];
+		Q.each(this.relations, function () {
+			results.push({
+				timestamp: this.weight,
+				publisherId: this.fromPublisherId,
+				streamName: this.fromStreamName
+			});
+		});
+		Q.handle(callback, this, [null, results]);
+	});
+};
 
 /**
  * @class Streams.Stream
@@ -3407,7 +3450,7 @@ Sp.onMessage = function _Stream_prototype_onMessage (messageType) {
  * @param {String} [ephemeral] type of the ephemeral, pass "" for all types
  */
 Sp.onEphemeral = function _Stream_prototype_onEphemeral (messageType) {
-	return Stream.onMessage(this.fields.publisherId, this.fields.name, messageType);
+	return Stream.onEphemeral(this.fields.publisherId, this.fields.name, messageType);
 };
 
 /**
@@ -3627,7 +3670,7 @@ Sp.testReadLevel = function _Stream_prototype_testReadLevel (level) {
 		level = Streams.READ_LEVEL[level];
 	}
 	if (level === undefined) {
-		throw new Q.Error("Streams.Sp.testReadLevel: level is undefined");
+		throw new Q.Error("Streams.Stream.prototype.testReadLevel: level is undefined");
 	}
 	return this.access.readLevel >= level;
 };
@@ -3644,7 +3687,7 @@ Sp.testWriteLevel = function _Stream_prototype_testWriteLevel (level) {
 		level = Streams.WRITE_LEVEL[level];
 	}
 	if (level === undefined) {
-		throw new Q.Error("Streams.Sp.testWriteLevel: level is undefined");
+		throw new Q.Error("Streams.Stream.prototype.testWriteLevel: level is undefined");
 	}
 	return this.access.writeLevel >= level;
 };
@@ -3661,9 +3704,23 @@ Sp.testAdminLevel = function _Stream_prototype_testAdminLevel (level) {
 		level = Streams.ADMIN_LEVEL[level];
 	}
 	if (level === undefined) {
-		throw new Q.Error("Streams.Sp.testAdminLevel: level is undefined");
+		throw new Q.Error("Streams.Stream.prototype.testAdminLevel: level is undefined");
 	}
 	return this.access.adminLevel >= level;
+};
+
+/**
+ * Test whether the user has a given permission
+ *
+ * @method testPermission
+ * @param {String} permission The name of a permission
+ * @return {Boolean} Returns true if the user has this permission
+ */
+Sp.testPermission = function _Stream_prototype_testPermission (permission) {
+	if (permission === undefined) {
+		throw new Q.Error("Streams.prototype.testWriteLevel: level is undefined");
+	}
+	return this.access.permissions.indexOf(permission) >= 0;
 };
 
 /**
@@ -3738,7 +3795,7 @@ Sp.refresh = function _Stream_prototype_refresh (callback, options) {
  * @param {Object} [options] optional object that can include:
  *   @param {Number} [options.limit] the maximum number of results to return
  *   @param {Number} [options.offset] the page offset that goes with the limit
- *   @param {Boolean} [options.ascending=false] whether to sort by ascending weight.
+ *   @param {Boolean} [options.ascending=false] whether to sort by ascending weight, otherwise sorts by descrending weight.
  * @param {Function} callback callback to call with the results
  *  First parameter is the error, the second one is an object of Streams.RelatedFrom objects you can iterate over with Q.each
  */
@@ -3754,7 +3811,7 @@ Sp.relatedFrom = function _Stream_prototype_relatedFrom (relationType, options, 
  * @param {Object} [options] optional object that can include:
  *   @param {Number} [options.limit] the maximum number of results to return
  *   @param {Number} [options.offset] the page offset that goes with the limit
- *   @param {Boolean} [options.ascending=false] whether to sort by ascending weight.
+ *   @param {Boolean} [options.ascending=false] whether to sort by ascending weight, otherwise sorts by descrending weight.
  *   @param {String} [options.prefix] optional prefix to filter the streams by
  * @param {Function} callback callback to call with the results
  *  First parameter is the error, the second one is an object of
@@ -4044,7 +4101,13 @@ Stream.unsubscribe.onError = new Q.Event();
  * @param {Function} [callback] receives (err, result) as parameters
  */
 Stream.observe = function _Stream_observe (publisherId, streamName, callback) {
-	Streams.socketRequest('Streams/observe', publisherId, streamName, callback);
+	var nodeUrl = Q.nodeUrl({
+		publisherId: publisherId,
+		streamName: streamName
+	});
+	Q.Socket.onConnect('Users', nodeUrl).add(function () {
+		Streams.socketRequest('Streams/observe', publisherId, streamName, callback);
+	}, 'Streams.Stream.observe');
 };
 
 /**
@@ -4434,6 +4497,8 @@ Mp.seen = function _Message_seen (messageTotal) {
  * @param {Number} [ordinal.min] The minimum ordinal in the range. If omitted, uses limit.
  * @param {Number} [ordinal.max] The maximum ordinal in the range. If omitted, gets the latest messages.
  * @param {Number} [ordinal.limit] Change the max number of messages to retrieve. If only max and limit are specified, messages are sorted by decreasing ordinal.
+ * @param {String} [ordinal.type] the type of the messages, if you only need a specific type
+ * @param {Boolean} [ordinal.ascending=false] whether to sort by ascending weight, otherwise sorts by descrending weight.
  * @param {Function} callback This receives two parameters. The first is the error.
  *   If ordinal was a Number, then the second parameter is the Streams.Message, as well as the "this" object.
  *   If ordinal was an Object, then the second parameter is a hash of { ordinal: Streams.Message } pairs
@@ -5003,9 +5068,36 @@ Pp.getAllExtras = function _Participant_prototype_getAllExtras () {
  * @param {String} extraName the name of the extra to get
  * @return {Mixed}
  */
-Pp.getExtra = function _Participant_prototype_get (extraName) {
-	var attr = this.getAllExtras();
-	return attr[extraName];
+Pp.getExtra = function _Participant_prototype_getExtra (extraName) {
+	var extras = this.getAllExtras();
+	return extras[extraName];
+};
+
+/**
+ * Test whether participant has one or more roles in stream
+ * 
+ * @param {String|Array} roles You can pass a role name, or array of role names
+ * @return {Boolean} whether the user has all the roles
+ */
+Pp.testRoles = function _Participant_prototype_testRoles (roles) {
+	var extras = this.getAllExtras();
+	if (typeof roles === 'string') {
+		if (extras.role === roles) {
+			return true;
+		}
+		roles = [roles];
+	} else if (roles.length == 1 && extras.role === roles[0]) {
+		return true;
+	}
+	if (!extras.roles) {
+		return false;
+	}
+	for (var i=0, l=roles.length; i<l; ++i) {
+		if (extras.roles.indexOf(roles[i]) < 0) {
+			return false;
+		}
+	}
+	return true;
 };
 
 /**
@@ -6571,20 +6663,19 @@ Q.onInit.add(function _Streams_onInit() {
 	});
 	
 	Users.Socket.onEvent('Streams/ephemeral').set(function (ephemeral, byUserId, streamInfo) {
-		Streams.get(stream.fields.publisherId, stream.fields.name, function (err) {
+		Streams.get(streamInfo.publisherId, streamInfo.streamName, function (err) {
 			if (err) {
 				console.warn(Q.firstErrorMessage(err));
 				return;
 			}
 
-			var payload = ephemeral.payload;
 			var stream = this;
 			var streamType = stream.fields.type;
-			var event = Streams.onEphemeral(streamType, payload.type);
+			var event = Streams.onEphemeral(streamType, ephemeral.type);
 			Q.handle(event, stream, [ephemeral, byUserId, streamInfo]);
 			event = Streams.Stream.onEphemeral(stream.fields.publisherId, stream.fields.name, '');
 			Q.handle(event, stream, [ephemeral, byUserId, streamInfo]);
-			event = Streams.Stream.onEphemeral(stream.fields.publisherId, stream.fields.name, payload.type);
+			event = Streams.Stream.onEphemeral(stream.fields.publisherId, stream.fields.name, ephemeral.type);
 			Q.handle(event, stream, [ephemeral, byUserId, streamInfo]);
 		});
 	});
