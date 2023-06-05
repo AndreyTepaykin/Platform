@@ -3300,11 +3300,11 @@
 	Users.onConnected = new Q.Event();
 	Users.onDisconnected = new Q.Event();
 	
-	Q.Socket.onConnect('Users').set(function (socket, ns, url) {
+	Q.Socket.onConnect('Users').set(function (qs, ns, url) {
 		Q.loadNonce(function () {
-			socket.emit('Users/user', Users.capability, Q.clientId(),
+			qs.socket.emit('Users/user', Users.capability, Q.clientId(),
 			function () {
-				Q.handle(Users.Socket.onSession);
+				Q.handle(Users.Socket.onSession, Users.Socket, qs, ns, url);
 			});
 		});
 	}, 'Users');
@@ -3897,11 +3897,10 @@
 			var qs = Q.Socket.get('Users', nodeUrl);
 			if (qs && qs.socket &&
 			(qs.socket.io.connected || !Q.isEmpty(qs.socket.io.connecting))) {
-				_waitForSession.call(qs.socket, 'Users', nodeUrl);
+				_waitForSession.call(qs, 'Users', nodeUrl);
 			}
 			Q.Socket.connect('Users', nodeUrl, _waitForSession);
 			function _waitForSession() {
-				var t = this, a = arguments;
 				Users.Socket.onSession.addOnce(function (socket, ns, url) {
 					callback && callback(socket, ns, url);
 				});
@@ -3912,11 +3911,11 @@
 		 * Returns a socket, if it was already connected, or returns undefined
 		 * @static
 		 * @method get
-		 * @param {String} url The url where socket.io is listening. If it's empty, then returns all matching sockets.
+		 * @param {String} nodeUrl The url where socket.io is listening. If it's empty, then returns all matching sockets.
 		 * @return {Q.Socket}
 		 */
-		get: function _Users_Socket_get(url) {
-			return Q.Socket.get('Users', url);
+		get: function _Users_Socket_get(nodeUrl) {
+			return Q.Socket.get('Users', nodeUrl);
 		},
 		
 		/**

@@ -11286,9 +11286,9 @@ Q.Socket.getAll = function _Q_Socket_all() {
 	return _qsockets;
 };
 
-function _connectSocketNS(ns, url, callback, callback2, forceNew) {
+function _connectSocketNS(ns, url, callback, earlyCallback, forceNew) {
 	// load socket.io script and connect socket
-	function _connectNS(ns, url, callback, callback2) {
+	function _connectNS(ns, url, callback, earlyCallback) {
 		// connect to (ns, url)
 		if (!root.io) return;
 		var qs = _qsockets[ns] && _qsockets[ns][url];
@@ -11302,7 +11302,6 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
 		// If we have a disconnected socket that is not connecting.
 		// Forget this socket manager, we must connect another one
 		// because g doesn't reconnect normally otherwise
-		var baseUrl = Q.baseUrl();
 		var parsed = url.parseUrl();
 		var host = parsed.scheme + '://' + parsed.host 
 			+ (parsed.port ? ':'+parsed.port : '');
@@ -11329,23 +11328,26 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
 			console.log('Error on connection '+url+' ('+error+')');
 		});
 
-		callback2 && callback2(_qsockets[ns][url], ns, url);
+		earlyCallback && earlyCallback(_qsockets[ns][url], ns, url);
 		
-		function _Q_Socket_register(socket) {
+		function _Q_Socket_register(qs) {
 			Q.each(_socketRegister, function (i, item) {
 				if (item[0] !== ns) return;
 				var name = item[1];
-				_ioOn(socket, name, Q.Socket.onEvent(ns, url, name).handle); // may overwrite again, but it's ok
-				_ioOn(socket, name, Q.Socket.onEvent(ns, '', name).handle);
+				_ioOn(qs.socket, name, Q.Socket.onEvent(ns, url, name).handle); // may overwrite again, but it's ok
+				_ioOn(qs.socket, name, Q.Socket.onEvent(ns, '', name).handle);
 				Q.handle(Q.Socket.onRegister, Q.Socket, [ns, url, name]);
 			});
 		}
 		
 		function _connected() {
-			Q.Socket.onConnect().handle(this, ns, url);
-			Q.Socket.onConnect(ns).handle(this, ns, url);
-			Q.Socket.onConnect(ns, url).handle(this, ns, url);
-			callback && callback(_qsockets[ns][url], ns, url);
+			var qs = _qsockets[ns][url];
+			qs.connected = true;
+			Q.Socket.onConnect().handle(qs, ns, url);
+			Q.Socket.onConnect(ns).handle(qs, ns, url);
+			Q.Socket.onConnect(ns, url).handle(qs, ns, url);
+			callback && callback(qs, ns, url);
+			
 			console.log('Socket connected to '+url);
 		}
 	}
@@ -11355,14 +11357,14 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
 	}
 	
 	if (root.io && root.io.Socket) {
-		_connectNS(ns, url, callback, callback2);
+		_connectNS(ns, url, callback, earlyCallback);
 	} else {
 		var socketPath = Q.getObject('Q.info.socketPath');
 		if (socketPath === undefined) {
 			socketPath = '/socket.io';
 		}
 		Q.addScript(url+socketPath+'/socket.io.js', function () {
-			_connectNS(ns, url, callback, callback2, forceNew);
+			_connectNS(ns, url, callback, earlyCallback, forceNew);
 		});
 	}
 }
@@ -11374,9 +11376,9 @@ function _connectSocketNS(ns, url, callback, callback2, forceNew) {
  * @param {String} ns A socket.io namespace to use
  * @param {String} url The url of the socket.io node to connect to
  * @param {Function} [callback] Called after socket connects successfully. Receives Q.Socket
- * @param {Function} [callback2] Receives Q.Socket as soon as it's constructed
+ * @param {Function} [earlyCallback] Receives Q.Socket as soon as it's constructed
  */
-Q.Socket.connect = function _Q_Socket_connect(ns, url, callback, callback2) {
+Q.Socket.connect = function _Q_Socket_connect(ns, url, callback, earlyCallback) {
 	if (!url) {
 		return false;
 	}
@@ -11393,7 +11395,7 @@ Q.Socket.connect = function _Q_Socket_connect(ns, url, callback, callback2) {
 		_qsockets[ns][url] = null; // pending
 	}
 	// check if socket already connected, or reconnect
-	_connectSocketNS(ns, url, callback, callback2, false);
+	_connectSocketNS(ns, url, callback, earlyCallback, false);
 };
 
 Q.Socket.onRegister = new Q.Event();
@@ -11413,6 +11415,7 @@ Q.Socket.prototype.disconnect = function _Q_Socket_prototype_disconnect() {
 		return;
 	}
 	qs.socket.disconnect();
+	qs.connected = false;
 };
 
 Q.Socket.prototype.toJSON = function () {
@@ -11489,9 +11492,9 @@ Q.Socket.onEvent = Q.Event.factory(
     	event.onFirst().set(function () {
 			// The first handler was added to the event
 			Q.each(Q.Socket.get(ns, url), function (url, qs) {
-				function _Q_Socket_register(socket) {
+				function _Q_Socket_register(qs) {
 					// this occurs when socket is connected
-					_ioOn(socket, name, event.handle);
+					_ioOn(qs.socket, name, event.handle);
 		    	}
 				if (qs) { 
 					// add listeners on sockets which are already constructed

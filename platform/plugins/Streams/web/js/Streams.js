@@ -418,6 +418,7 @@ var _retainedByKey = {};
 var _retainedByStream = {};
 var _retainedStreams = {};
 var _retainedNodes = {};
+var _connectedNodes = {};
 
 /**
  * Calculate the key of a stream used internally for retaining and releasing
@@ -559,22 +560,23 @@ function _connectSockets(refresh) {
 	if (!Users.loggedInUser) {
 		return false;
 	}
+	// 
 	Streams.retainWith('Streams')
-		.get(Users.loggedInUser.id, 'Streams/participating', function () {
-			Q.each(_retainedByStream, function _connectRetainedNodes(ps) {
-				var stream = _retainedStreams[ps];
-				if (stream && stream.participant) {
-					var parts = ps.split("\t");
-					Users.Socket.connect(Q.nodeUrl({
-						publisherId: parts[0],
-						streamName: parts[1]
-					}));
-				}
-			});
-		});
+	.get(Users.loggedInUser.id, 'Streams/participating');
 	if (refresh) {
 		_debouncedRefresh();
 	}
+	Q.Streams.related(Users.loggedInUser.id, 'Streams/participating', null, true, {
+		nodeUrlsOnly: true
+	}, function () {
+		var n = this.nodeUrls;
+		for (var i=0, l = n.length; i < l; ++i) {
+			Users.Socket.connect(n[i], function (qs, ns, url) {
+				_connectedNodes[url] = qs;
+			});
+			_connectedNodes[n[i]] = true;
+		}
+	});
 }
 
 /**
@@ -1608,6 +1610,7 @@ Streams.retainWith = function (key) {
 	return Streams;
 };
 
+
 /**
  * Releases all retained streams under a given key. See Streams.retain()
  * It also closes sockets corresponding to all the released streams,
@@ -1620,32 +1623,25 @@ Streams.release = function (key) {
 	key = Q.calculateKey(key);
 	if (_retainedByKey[key]) {
 		for (var ps in _retainedByKey) {
-			if (!_retainedByStream[ps]) {
+			if (Q.isEmpty(_retainedByStream[ps])) {
 				continue;
 			}
 			var parts = ps.split("\t");
+			var publisherId = parts[0];
+			var streamName = parts[1];
 			delete _retainedByStream[ps][key];
 			if (Q.isEmpty(_retainedByStream[ps])) {
+				Streams.neglect(publisherId, streamName);
 				delete(_retainedByStream[ps]);
 				delete(_retainedStreams[ps]);
 				var stream = _retainedStreams[ps];
 				Q.handle([
-					Stream.onRelease.ifAny(parts[0], ""),
-					Stream.onRelease.ifAny(parts[0], parts[1]),
+					Stream.onRelease.ifAny(publisherId, ""),
+					Stream.onRelease.ifAny(publisherId, streamName),
 					Streams.onRelease.ifAny(Q.getObject('fields.type', stream))
 				], stream, [key]);
 			}
-			var nodeUrl = Q.nodeUrl({
-				publisherId: parts[0],
-				streamName: parts[1]
-			});
-			var hasNode = !Q.isEmpty(_retainedNodes[nodeUrl]);
-			delete _retainedNodes[nodeUrl][ps];
-			if (hasNode && Q.isEmpty(_retainedNodes[nodeUrl])) {
-				delete(_retainedNodes[nodeUrl]);
-				var socket = Users.Socket.get(nodeUrl);
-				socket && socket.disconnect();
-			}
+			_disconnectStreamNode(publisherId, streamName, ps);
 		}
 	}
 	delete _retainedByKey[key];
@@ -2246,11 +2242,15 @@ Streams.related = function _Streams_related(publisherId, streamName, relationTyp
 		far = isCategory ? 'from' : 'to',
 		farPublisherId = far+'PublisherId',
 		farStreamName = far+'StreamName',
-		slotNames = ['relations'],
+		slotNames = [],
 		fields = {"publisherId": publisherId, "streamName": streamName};
-	if (!options.relationsOnly) {
+	if (!options.relationsOnly && !options.nodeUrlsOnly) {
 		slotNames.push('relatedStreams');
 	}
+	if (!options.nodeUrlsOnly) {
+		slotNames.push('relations');
+	}
+	slotNames.push('nodeUrls');
 	if (options.messages) {
 		slotNames.push('messages');
 	}
@@ -2260,7 +2260,7 @@ Streams.related = function _Streams_related(publisherId, streamName, relationTyp
 	if (options.withParticipant) {
 		fields.withParticipant = true;
 	}
-	if (relationType) {
+	if (relationType != null) {
 		fields.type = relationType;
 	}
 	Q.extend(fields, options);
@@ -2380,6 +2380,7 @@ Streams.related = function _Streams_related(publisherId, streamName, relationTyp
 					relatedStreams: streams,
 					relations: data.slots.relations,
 					stream: stream,
+					nodeUrls: data.slots.nodeUrls,
 					errors: params
 				}, null);
 			}
@@ -2672,17 +2673,23 @@ Stream.create = Streams.create;
 Stream.define = Streams.define;
 
 /**
- * Call this function to retain a particular stream.
- * When a stream is retained, it is refreshed when Streams.refresh() or
- * stream.refresh() are called. You can release the stream with stream.release().
+ * Call this function to retain a particular stream, under a key.
+ * You should release the stream with the same key later using .release(key),
+ * unless the key is a tool, or boolean true, in which case the call to
+ * release happens automatically when the tool or page is unloaded, respectively.
+ * Retained streams are refreshed during Streams.refresh(),
+ * and start getting real-time messages unless all calls to retain()
+ * on them have dontObserve.
  * This method also opens a socket to the stream's node, if one isn't already open.
- *
+ * 
  * @static
  * @method retain
  * @param {String} publisherId the publisher of the stream(s)
  * @param {String|Array} streamName can be a string or array of strings
  * @param {String} key the key under which to retain
  * @param {Function} callback optional callback for when stream(s) are retained
+ * @param {Object} [options] Various options you can override
+ * @param {Boolean} [options.dontObserve] If true, doesn't call observe() to begin getting realtime notifications
  * @return {Object} returns Streams object for chaining with .get() or .related()
  */
 Stream.retain = function _Stream_retain (publisherId, streamName, key, callback) {
@@ -2730,17 +2737,7 @@ Stream.release = function _Stream_release (publisherId, streamName) {
 			if (Q.isEmpty(_retainedByKey[key])) {
 				delete _retainedByKey[key];
 			}
-			var nodeUrl = Q.nodeUrl({
-				publisherId: publisherId,
-				streamName: streamName
-			});
-			var hasNode = !Q.isEmpty(_retainedNodes[nodeUrl]);
-			delete _retainedNodes[nodeUrl][ps];
-			if (hasNode && Q.isEmpty(_retainedNodes[nodeUrl])) {
-				delete(_retainedNodes[nodeUrl]);
-				var socket = Users.Socket.get(nodeUrl);
-				socket && socket.disconnect();
-			}
+			_disconnectStreamNode(publisherId, streamName, ps);
 		}
 	}
 	delete _retainedByStream[ps];
@@ -2845,6 +2842,24 @@ var Sp = Stream.prototype;
  * @return {Object} returns Streams object for chaining with .get() or .related()
  */
 Sp.retainWith = Streams.retainWith;
+
+function _disconnectStreamNode(publisherId, streamName, ps) {
+	var nodeUrl = Q.nodeUrl({
+		publisherId: publisherId,
+		streamName: streamName
+	});
+	var hadNode = !Q.isEmpty(_retainedNodes[nodeUrl]);
+	delete _retainedNodes[nodeUrl][ps];
+	if (!hadNode || !Q.isEmpty(_retainedNodes[nodeUrl])
+	|| !_connectedNodes[nodeUrl]) {
+		return false;
+	}
+	// we can disconnect the node
+	delete(_retainedNodes[nodeUrl]);
+	var socket = Users.Socket.get(nodeUrl);
+	socket && socket.disconnect();
+	return true;
+}
 
 /**
  * Calculate the url of a stream's icon
@@ -3164,28 +3179,44 @@ Sp.reopen = function _Stream_remove () {
 
 /**
  * Retain the stream in the client under a certain key.
- * Retained streams are refreshed during Streams.refresh()
+ * You should release the stream with the same key later using .release(key),
+ * unless the key is a tool, or boolean true, in which case the call to
+ * release happens automatically when the tool or page is unloaded, respectively.
+ * Retained streams are refreshed during Streams.refresh(),
+ * and start getting real-time messages unless all calls to retain()
+ * on them have dontObserve.
  *
  * @method retain
  * @param {String} key
+ * @param {Object} [options] Various options you can override
+ * @param {Boolean} [options.dontObserve] If true, doesn't call observe() to begin getting realtime notifications
  * @return {Q.Streams.Stream}
  */
-Sp.retain = function _Stream_prototype_retain (key) {
+Sp.retain = function _Stream_prototype_retain (key, options) {
+	options = options || {};
 	var publisherId = this.fields.publisherId;
 	var streamName = this.fields.name;
 	var ps = Streams.key(publisherId, streamName);
 	key = Q.calculateKey(key);
 	var wasRetained = !!_retainedStreams[ps];
-	_retainedStreams[ps] = this;
+	var stream = _retainedStreams[ps] = this;
 	var nodeUrl = Q.nodeUrl({
 		publisherId: publisherId,
 		streamName: streamName
 	});
-	var stream = _retainedStreams[ps];
-	if (stream && stream.participant) {
-		Users.Socket.connect(nodeUrl, function () {
-			Q.setObject([nodeUrl, ps], true, _retainedNodes);
-		});
+	if (!wasRetained) {
+		var sp = stream.participant;
+		var participating = (sp && sp.state === 'participating');
+		if (participating || !options.dontObserve) {
+			// If the socket already connected, this will just call the callback:
+			Users.Socket.connect(nodeUrl, function () {
+				if (!participating && !options.dontObserve) {
+					stream.observe();
+				}
+			});
+			// set the node to disconnect after last stream is released
+			Q.setObject([nodeUrl, ps], true, _retainedNodes);	
+		}
 	}
 	Q.setObject([ps, key], true, _retainedByStream);
 	Q.setObject([key, ps], true, _retainedByKey);
@@ -5923,17 +5954,18 @@ function updateAvatarCache(stream) {
 	if (avatarStreamNames[sf.name]) {
 		var field = sf.name.split('/').pop();
 		var userId = sf.publisherId;
+		var isIcon = sf.name === 'Streams/user/icon';
+		var c = isIcon ? sf.icon : sf.content;
 		cache = Avatar.get.cache;
 		if ((item = cache.get([userId])) && item.subject) {
-			item.subject[field] = sf.content;
+			item.subject[field] = c;
 			cache.set([userId], 0, item.subject, [null, item.subject]);
 		}
 		if (field === 'username' || field === 'icon') {
 			cache = Users.get.cache;
 			if (item = cache.get([userId])) {
 				var user = item.subject;
-				var isIcon = sf.name === 'Streams/user/icon';
-				user[field] = isIcon ? sf.icon : sf.content;
+				user[field] = c;
 				cache.set([userId], 0, item.subject, [null, item.subject]);
 			}
 		}
@@ -6191,7 +6223,7 @@ Q.beforeInit.add(function _Streams_beforeInit() {
 			if (params[0] || !Q.isEmpty(subject.errors)) { // some error
 				return callback(subject, params);
 			}
-			var keys = Object.keys(subject.relatedStreams).concat(['stream']);
+			var keys = Object.keys(subject.relatedStreams).concat(['stream', 'nodeUrls']);
 			var pipe = Q.pipe(keys, function () {
 				callback(subject, params);
 			});
@@ -6205,6 +6237,7 @@ Q.beforeInit.add(function _Streams_beforeInit() {
 					pipe.fill(i)();
 				});
 			});
+			pipe.fill('nodeUrls')(subject.nodeUrls);
 		}
 	});
 
@@ -6492,6 +6525,9 @@ Q.onInit.add(function _Streams_onInit() {
 		var params = Q.getObject("Q.plugins.Streams.invited.dialog");
 		if (!params || _Streams_onInvited.showed) {
 			return;
+		}
+		if (Q.Users.loggedInUser && Q.Users.loggedInUser.sessionCount > 1) {
+			return; // in this case, skip the dialog for now
 		}
 		_Streams_onInvited.showed = true;
 		var delay = params.delay || 2000;
