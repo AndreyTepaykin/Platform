@@ -215,7 +215,7 @@ abstract class Streams extends Base_Streams
 	 * Can share the stream's actual content with others
 	 * @property $ADMIN_LEVEL['share']
 	 * @type integer
-	 * @default 10
+	 * @default 15
 	 * @final
 	 */
 	/**
@@ -2651,7 +2651,7 @@ abstract class Streams extends Base_Streams
 					"fromPublisherId" => $asUserId
 				))->execute()->fetchColumn(0);
 				if ($selfRelations) {
-					if ($$throwIfUnavailable) {
+					if ($throwIfUnavailable) {
 						throw new Q_Exception(Q::interpolate($exceededText, @compact("maxRelations")));
 					}
 					return false;
@@ -2666,7 +2666,7 @@ abstract class Streams extends Base_Streams
 				));
 			}
 
-			if ($throw) {
+			if ($throwIfUnavailable) {
 				throw new Q_Exception(Q::interpolate($exceededText, @compact("maxRelations")));
 			}
 
