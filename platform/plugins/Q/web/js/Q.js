@@ -4184,6 +4184,26 @@ Q.getter = function _Q_getter(original, options) {
 	gw.onExecuted = new Q.Event();
 	gw.onResult = new Q.Event();
 
+	gw.all = function (arrayOfArguments, callback, useIndexes) {
+		var keys = [], argsArray = [];
+		for (var i=0, l=arrayOfArguments.length; i<l; ++i) {
+			var args = arrayOfArguments[i];
+			keys.push(useIndexes ? i : Q.Cache.key(args));
+			if (!(args instanceof Array)) {
+				args = [args];
+			}
+			argsArray.push(args);
+		}
+		var pipe = Q.pipe(keys, 1, function (params, subjects) {
+			Q.handle(callback, this, [params, subjects, arrayOfArguments]);
+		});
+		for (i=0, l=keys.length; i < l; ++i) {
+			argsArray[i].push(pipe.fill(keys[i]));
+			gw.apply(this, argsArray[i]);
+		}
+		pipe.run();
+	};
+
 	var _waiting = {};
 	if (gw.cache === false) {
 		// no cache
@@ -14166,6 +14186,7 @@ Q.extend(Q.prompt.options, Q.text.prompt);
  * @param {Q.Event} [options.onActivate] Q.Event or function which is called when invoked container is activated (all inner tools, if any, are activated and dialog is fully loaded and shown).
  * @param {Q.Event} [options.beforeClose] beforeClose Q.Event or function which is called when invoked container closing was initiated and it's still visible. Can return false to cancel closing.
  * @param {Q.Event} [options.onClose] Optional. Q.Event or function which is called after invoked container has closed
+ * @return {Object} an object with methods like "close", that you can call to close the invoked interface
  */
 Q.invoke = function (options) {
 	if (!Q.isPlainObject(options)) {
@@ -14180,20 +14201,25 @@ Q.invoke = function (options) {
 	} else {
 		_continue();
 	}
+	var methods = {};
 	function _continue() {
 		Q.each(Q.invoke.handlers, function (i, handler) {
-			var ret = Q.handle(handler, Q, [options]);
+			var ret = Q.handle(handler, Q, [options, methods]);
 			if (ret === false) {
-				return false
+				return false;
 			}
 		});
 	}
+	return methods;
 };
 Q.invoke.handlers = [
-	function (options) {
-		Q.Dialogs.push(Q.extend({}, options, {
+	function (options, methods) {
+		var element = Q.Dialogs.push(Q.extend({}, options, {
 			onActivate: options.onActivate || function () { }
 		}));
+		methods.close = function () {
+			Q.Dialogs.close(element);
+		};
 	}
 ];
 
