@@ -504,9 +504,7 @@ Sp.splitId = function(lengths, delimiter) {
 	return segments.join(delimiter);
 };
 /**
- * Used to split ids into one or more segments, in order to store millions
- * of files under a directory, without running into limits of various filesystems
- * on the number of files in a directory.
+ * Used to match string content to certain types of data
  * Consider using Amazon S3 or another service for uploading files in production.
  * @method matchTypes
  * @param {String|Array} [types] type or types to detect. Can be "url", "email", "phone", "twitter".
@@ -592,6 +590,16 @@ Sp.deobfuscate = function (key) {
 };
 
 /**
+ * Converts a hex representation of a number to decimal
+ * @method hexToDecimal
+ * @return {String}
+ */
+Sp.hexToDecimal = function () {
+	var hex = this.substr(0, 2) == '0x' ? this : '0x' + this;
+	return BigInt(hex).toString();
+};
+
+/**
  * Converts a decimal representation of a number to hex
  * @method decimalToHex
  * @return {String}
@@ -610,7 +618,7 @@ Sp.decimalToHex = function () {
         hex.push(sum.pop().toString(16));
     }
     return hex.join('');
-}
+};
 
 /**
  * @class Function
@@ -4637,7 +4645,6 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 			}
 			continue;
 		}
-		_qtc[n] = ctor;
 		ctor.toolName = n;
 		if (!Q.isArrayLike(stateKeys)) {
 			methods = stateKeys;
@@ -4656,11 +4663,39 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 				v.type = k;
 			}
 		}
-		Q.extend(ctor.prototype, 10, methods);
-		Q.Tool.onLoadedConstructor(n).handle(n, ctor);
-		Q.Tool.onLoadedConstructor("").handle(n, ctor);
+
+		var c = _qtc[n];
+		_qtc[n] = ctor;
+
+		if (!Q.isPlainObject(c)) {
+			_loadedConstructor(ctor);
+			continue;
+		}
+		var p = new Q.Pipe(waitFor, 1, function (params) {
+			_loadedConstructor(ctor, params);
+		});
+		var waitFor = [];
+		Q.Text.addedFor('Q.Tool.define', n, c);
+		if (c.text) {
+			waitFor.push('text');
+			Q.Text.get(c.text, p.fill('text'));
+		}
+		if (c.css) {
+			waitFor.push('css');
+			Q.addStylesheet(c.css, p.fill('css'));
+		}
+		p.run();
 	}
 	return ctor;
+
+	function _loadedConstructor(ctor, params) {
+		if (params && params.text && params.text[1]) {
+			ctor.text = params.text[1];
+		}
+		Q.extend(ctor.prototype, 10, methods);
+		Q.Tool.onLoadedConstructor(ctor.toolName).handle(ctor.toolName, ctor);
+		Q.Tool.onLoadedConstructor("").handle(ctor.toolName, ctor);
+	}
 };
 
 Q.Tool.beingActivated = undefined;
@@ -6599,7 +6634,7 @@ Q.IndexedDB = {
 		var open = indexedDB.open(dbName, version || 1);
 		open.onupgradeneeded = function() {
 			var db = open.result;
-			var store = db.createObjectStore(storeName, {keyPath: keyPath});
+			db.createObjectStore(storeName, {keyPath: keyPath});
 		};
 		open.onerror = function (error) {
 			callback && callback(error);
@@ -9327,7 +9362,9 @@ Q.addStylesheet = function _Q_addStylesheet(href, media, onload, options) {
 	}
 	options.info = {};
 	href = Q.url(href, null, options);
-	if (!media) media = 'screen,print';
+	if (!media) {
+		media = 'screen,print';
+	}
 	var links = document.getElementsByTagName('link');
 	var i, e, h, m;
 	var href2 = href.split('?')[0];
@@ -9816,8 +9853,9 @@ Q.activate = function _Q_activate(elem, options, callback, internal) {
  * @param {Q.Event} [options.onLoad] event which occurs when the parsed data comes back from the server
  * @param {Q.Event} [options.onActivate] event which occurs when all Q.activate's processed and all script lines executed
  * @param {Q.Event} [options.onLoadStart] handlers of this event will be called after the request is initiated, if "quiet" option is false they can add some visual indicators
- * @param {Q.Event} [options.onLoadEnd] handlers of this event will be called after the request is fully completed, if "quiet" option is false they can add some visual indicators
- * @param {Q.Event} [options.beforeFillSlots] handler to call before filling slots with new content
+ * @param {Q.Event} [options.onLoadEnd] handlers called after the request is fully completed, if "quiet" option is false they can add some visual indicators
+ * @param {Q.Event} [options.beforeFillSlots] handler called before filling slots with new content
+ * @param {Q.Event} [options.onFillSlots] use this handler to do things with elements as soon as they are filled into the slots
  * @param {Q.Event} [options.beforeUnloadUrl] opportunity to save state around current url, such as scroll positions of displayed slots
  * @param {Q.Event} [options.unloadedUrl] if the URL was already replaced by the time Q.loadUrl is called (e.g. from popState handler) pass the URL being unloaded here
  * @return {Q.Promise} Returns a promise with an extra .cancel() method to cancel the action
@@ -9997,6 +10035,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 				// this is where we fill all the slots
 				Q.handle(o.beforeFillSlots, Q, [response, url, o]);
 				domElements = handler(response, url, o);
+				Q.handle(o.onFillSlots, Q, [domElements, response, url, o]);
 
 				if (!o.ignoreHistory) {
 					Q.Page.push(url, Q.getObject('slots.title', response));
@@ -10529,8 +10568,8 @@ function _activateTools(toolElement, options, shared) {
 					this.constructor = toolConstructor;
 					Q.Tool.call(this, element, options);
 					this.state = Q.copy(this.options, toolConstructor.stateKeys);
-					if (params && params.text) {
-						this.text = params.text[1];
+					if (toolConstructor.text) {
+						this.text = toolConstructor.text;
 					}
 					var prevTool = Q.Tool.beingActivated;
 					Q.Tool.beingActivated = this;
@@ -10590,23 +10629,25 @@ function _activateTools(toolElement, options, shared) {
 			// NOTE: inside the tool constructor, after you add
 			// any child elements, call Q.activate() and Qbix
 			// will work correctly, whether it's sync or async.
-			var _constructor = _constructors[toolName];
-			var result = new _constructor(toolElement, options);
-			var tool = Q.getObject(['Q', 'tools', toolName], toolElement);
-			shared.tool = tool;
-			Q.setObject([toolId, toolName], tool, shared);
-			if (uniqueToolId) {
-				if (uniqueToolId === shared.firstToolId) {
-					shared.firstTool = tool;
+			Q.Tool.onLoadedConstructor(toolName).add(function () {
+				var _constructor = _constructors[toolName];
+				var result = new _constructor(toolElement, options);
+				var tool = Q.getObject(['Q', 'tools', toolName], toolElement);
+				shared.tool = tool;
+				Q.setObject([toolId, toolName], tool, shared);
+				if (uniqueToolId) {
+					if (uniqueToolId === shared.firstToolId) {
+						shared.firstTool = tool;
+					}
+					shared.pipe.fill(uniqueToolId)();
+					shared.internal && shared.internal.progress && shared.internal.progress(shared);
 				}
-				shared.pipe.fill(uniqueToolId)();
-				shared.internal && shared.internal.progress && shared.internal.progress(shared);
-			}
-			if (!tool) {
-				return;
-			}
-			pendingCurrentEvent.handle.call(tool, options, result);
-			pendingCurrentEvent.removeAllHandlers();
+				if (!tool) {
+					return;
+				}
+				pendingCurrentEvent.handle.call(tool, options, result);
+				pendingCurrentEvent.removeAllHandlers();
+			}, 'Q.Tool.construct');
 		}
 	}, shared, null, { placeholder: true });
 }
@@ -11199,7 +11240,7 @@ Q.Text = {
 	 * Get the array of text files added for this normalized name
 	 * @param {String|Array} methods Can be "Q.Tool.define" or "Q.Template.set", or array of them
 	 * @param {String} normalizedName The prefix for the names of tools to load the text files for
-	 * @param {Object} objectToExtend This object's "text" property is extended
+	 * @param {Object} objectToExtend This object's "text" property array will be set or extended.
 	 * @return {Array} the array of text files, if any
 	 */
 	addedFor: function (method, normalizedName, objectToExtend) {
@@ -12332,6 +12373,18 @@ function _Q_Pointer_start_end_handler (e) {
  * @class Q.Visual
  */
 Q.Visual = Q.Pointer = {
+
+	awaitNaturalImageSize: function (img, callback) {
+		var wait = setInterval(function() {
+			var w = img.naturalWidth;
+			var h = img.naturalHeight;
+			if (w && h) {
+				clearInterval(wait);
+				callback.apply(img, [w, h]);
+			}
+		}, 30);
+	},
+
 	/**
 	 * Intelligent pointer start event that also works on touchscreens
 	 * @static
@@ -14189,6 +14242,7 @@ Q.extend(Q.prompt.options, Q.text.prompt);
  * @return {Object} an object with methods like "close", that you can call to close the invoked interface
  */
 Q.invoke = function (options) {
+	var methods = {};
 	if (!Q.isPlainObject(options)) {
 		throw new Q.Error("Q.invoke: please pass an object instead of " + typeof options);
 	}
@@ -14201,7 +14255,6 @@ Q.invoke = function (options) {
 	} else {
 		_continue();
 	}
-	var methods = {};
 	function _continue() {
 		Q.each(Q.invoke.handlers, function (i, handler) {
 			var ret = Q.handle(handler, Q, [options, methods]);
