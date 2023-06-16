@@ -27,7 +27,7 @@
  * @param {float} [$fields.credits] defaults to 0
  * @param {string} [$fields.attributes] defaults to null
  * @param {string|Db_Expression} [$fields.insertedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
- * @param {string|Db_Expression} [$fields.updatedTime] defaults to null
+ * @param {string|Db_Expression} [$fields.updatedTime] defaults to new Db_Expression("CURRENT_TIMESTAMP")
  */
 abstract class Base_Assets_Credits extends Db_Row
 {
@@ -100,7 +100,7 @@ abstract class Base_Assets_Credits extends Db_Row
 	/**
 	 * @property $updatedTime
 	 * @type string|Db_Expression
-	 * @default null
+	 * @default new Db_Expression("CURRENT_TIMESTAMP")
 	 * 
 	 */
 	/**
@@ -912,9 +912,6 @@ return array (
 	 */
 	function beforeSet_updatedTime($value)
 	{
-		if (!isset($value)) {
-			return array('updatedTime', $value);
-		}
 		if ($value instanceof Db_Expression
                or $value instanceof Db_Range) {
 			return array('updatedTime', $value);
@@ -947,9 +944,9 @@ return array (
     2 => '',
     3 => false,
   ),
-  1 => true,
+  1 => false,
   2 => '',
-  3 => NULL,
+  3 => 'CURRENT_TIMESTAMP',
 );			
 	}
 
