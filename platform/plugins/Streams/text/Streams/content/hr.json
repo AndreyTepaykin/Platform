@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Tko me pozvao",
         "DoYouAgree": "Slažeš li se?",
         "Yes": "Da",
-        "No": "Ne"
+        "No": "Ne",
+        "JoinItNow": "Pridružite se sada?"
     },
     "login": {
         "prompt": "Neka vas prijatelji prepoznaju:",
         "newUser": "ili otvorite novi račun u nastavku",
         "picTooltip": "Možete promijeniti ovu sliku kasnije",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Unesite svoje puno ime"
         }
     },

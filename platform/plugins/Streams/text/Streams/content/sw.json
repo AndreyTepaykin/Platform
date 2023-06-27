@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Nani alinialika",
         "DoYouAgree": "Unakubali?",
         "Yes": "Ndiyo",
-        "No": "Hapana"
+        "No": "Hapana",
+        "JoinItNow": "Jiunge nayo sasa?"
     },
     "login": {
         "prompt": "Waruhusu marafiki wakutambue:",
         "newUser": "au fungua akaunti mpya hapa chini",
         "picTooltip": "Unaweza kubadilisha picha hii baadaye",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Ingiza jina lako kamili"
         }
     },

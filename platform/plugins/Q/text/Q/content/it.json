@@ -17,7 +17,7 @@
         "click": "clic",
         "yes": "sì",
         "no": "no",
-        "Tap": "Rubinetto",
+        "Tap": "Tocco",
         "Click": "Clic",
         "Yes": "sì",
         "No": "No"
@@ -87,7 +87,7 @@
         "WhichInvalid": "Argomento &#39;quale&#39; non valido"
     },
     "alert": {
-        "title": "Mettere in guardia"
+        "title": "Avviso"
     },
     "confirm": {
         "title": "Confermare",

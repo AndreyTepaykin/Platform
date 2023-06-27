@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Kdo mě pozval",
         "DoYouAgree": "Souhlasíš?",
         "Yes": "Ano",
-        "No": "Ne"
+        "No": "Ne",
+        "JoinItNow": "Připojit se nyní?"
     },
     "login": {
         "prompt": "Umožněte přátelům, aby vás poznali:",
         "newUser": "nebo si níže vytvořte nový účet",
         "picTooltip": "Tento obrázek můžete později změnit",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Zadejte své celé jméno"
         }
     },

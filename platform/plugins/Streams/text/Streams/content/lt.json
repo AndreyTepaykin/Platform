@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Kas mane pakvietė",
         "DoYouAgree": "Ar sutinki?",
         "Yes": "Taip",
-        "No": "Nr"
+        "No": "Nr",
+        "JoinItNow": "Prisijunk dabar?"
     },
     "login": {
         "prompt": "Leisk draugams tave atpažinti:",
         "newUser": "arba toliau sukurkite naują paskyrą",
         "picTooltip": "Vėliau galėsite pakeisti šią nuotrauką",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Įveskite savo vardą ir pavardę"
         }
     },

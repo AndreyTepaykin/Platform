@@ -17,7 +17,7 @@
         "click": "klik",
         "yes": "Ja",
         "no": "ingen",
-        "Tap": "Tryk på",
+        "Tap": "Røre ved",
         "Click": "Klik",
         "Yes": "Ja",
         "No": "Ingen"
@@ -51,7 +51,7 @@
         "encoding": "Indkodning"
     },
     "alert": {
-        "title": "Alert"
+        "title": "Varsel"
     },
     "confirm": {
         "title": "Bekræfte",

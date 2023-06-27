@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Kes mind kutsus",
         "DoYouAgree": "Kas sa nõustud?",
         "Yes": "Jah",
-        "No": "Ei"
+        "No": "Ei",
+        "JoinItNow": "Kas liituda sellega kohe?"
     },
     "login": {
         "prompt": "Laske sõpradel teid ära tunda:",
         "newUser": "või looge allpool uus konto",
         "picTooltip": "Saate seda pilti hiljem muuta",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Sisestage oma täisnimi"
         }
     },

@@ -13,11 +13,11 @@
         "otherDomain": "Solicitação de domínio cruzado bloqueada para domínio estrangeiro em {{baseUrl}}"
     },
     "words": {
-        "tap": "toque",
+        "tap": "tocar",
         "click": "clique",
         "yes": "sim",
         "no": "não",
-        "Tap": "Toque",
+        "Tap": "Tocar",
         "Click": "Clique",
         "Yes": "sim",
         "No": "Não"
@@ -87,7 +87,7 @@
         "WhichInvalid": "Argumento &#39;qual&#39; inválido"
     },
     "alert": {
-        "title": "Alerta"
+        "title": "Perceber"
     },
     "confirm": {
         "title": "confirme",

@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Kas mani uzaicināja",
         "DoYouAgree": "Vai tu piekrīti?",
         "Yes": "Jā",
-        "No": "Nē"
+        "No": "Nē",
+        "JoinItNow": "Vai pievienoties tai tagad?"
     },
     "login": {
         "prompt": "Ļaujiet draugiem jūs atpazīt:",
         "newUser": "vai izveidojiet jaunu kontu tālāk",
         "picTooltip": "Vēlāk varat mainīt šo attēlu",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Ievadiet savu pilno vārdu"
         }
     },

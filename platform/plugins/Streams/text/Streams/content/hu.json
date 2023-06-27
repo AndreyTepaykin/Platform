@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Aki meghívott",
         "DoYouAgree": "Egyetértesz?",
         "Yes": "Igen",
-        "No": "Nem"
+        "No": "Nem",
+        "JoinItNow": "Csatlakozz most?"
     },
     "login": {
         "prompt": "Hagyd, hogy barátaid felismerjenek:",
         "newUser": "vagy hozzon létre egy új fiókot alább",
         "picTooltip": "Ezt a képet később megváltoztathatja",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Add meg a teljes neved"
         }
     },

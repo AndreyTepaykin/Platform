@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Məni kim dəvət etdi",
         "DoYouAgree": "Razısan?",
         "Yes": "Bəli",
-        "No": "Yox"
+        "No": "Yox",
+        "JoinItNow": "İndi qoşulun?"
     },
     "login": {
         "prompt": "Dostlar sizi tanısın:",
         "newUser": "və ya aşağıda yeni hesab yaradın",
         "picTooltip": "Bu şəkli sonra dəyişə bilərsiniz",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Tam adınızı daxil edin"
         }
     },

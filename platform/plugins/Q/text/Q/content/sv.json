@@ -17,7 +17,7 @@
         "click": "klick",
         "yes": "ja",
         "no": "Nej",
-        "Tap": "Knacka",
+        "Tap": "Rör",
         "Click": "Klick",
         "Yes": "Ja",
         "No": "Nej"
@@ -87,7 +87,7 @@
         "WhichInvalid": "Argumentet &quot;vilket&quot; är ogiltigt"
     },
     "alert": {
-        "title": "Varna"
+        "title": "Lägga märke till"
     },
     "confirm": {
         "title": "Bekräfta",

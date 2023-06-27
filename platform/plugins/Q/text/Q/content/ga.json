@@ -17,7 +17,7 @@
         "click": "cliceáil",
         "yes": "tá",
         "no": "níl",
-        "Tap": "Sconna",
+        "Tap": "Dteagmháil",
         "Click": "Cliceáil",
         "Yes": "Tá",
         "No": "Níl"
@@ -87,7 +87,7 @@
         "WhichInvalid": "Argument ‘which’ neamhbhailí"
     },
     "alert": {
-        "title": "Airdeall"
+        "title": "Fógra"
     },
     "confirm": {
         "title": "Deimhnigh",

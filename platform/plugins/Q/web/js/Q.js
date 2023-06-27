@@ -477,11 +477,25 @@ Sp.sameDomain = function _String_prototype_sameDomain (url2, options) {
  * @param {String} prefix
  * @return {boolean}
  */
+if (!Sp.startsWith)
 Sp.startsWith = function _String_prototype_startsWith(prefix) {
 	if (prefix == null || this.length < prefix.length) {
 		return false;
 	}
 	return this.substr(0, prefix.length) === prefix;
+};
+
+/**
+ * @method endsWith
+ * @param {String} suffix
+ * @return {boolean}
+ */
+if (!Sp.endsWith)
+Sp.endsWith = function _String_prototype_endsWith(suffix) {
+	if (suffix == null || this.length < suffix.length) {
+		return false;
+	}
+	return this.substr(-suffix.length) === suffix;
 };
 
 /**
@@ -618,49 +632,6 @@ Sp.decimalToHex = function () {
         hex.push(sum.pop().toString(16));
     }
     return hex.join('');
-};
-
-Sp.consoleColor = function(color) {
-	var code;
-	if (color instanceof Array) {
-		code = '';
-		color.forEach(function (c) {
-			code += _consoleColors[c];
-		});
-	} else {
-		code = _consoleColors[color];
-	}
-	return code + this + _consoleColors.Reset;
-};
-
-var _consoleColors = {
-	Reset: "\x1b[0m",
-	Bright: "\x1b[1m",
-	Dim: "\x1b[2m",
-	Underscore: "\x1b[4m",
-	Blink: "\x1b[5m",
-	Reverse: "\x1b[7m",
-	Hidden: "\x1b[8m",
-
-	FgBlack: "\x1b[30m",
-	FgRed: "\x1b[31m",
-	FgGreen: "\x1b[32m",
-	FgYellow: "\x1b[33m",
-	FgBlue: "\x1b[34m",
-	FgMagenta: "\x1b[35m",
-	FgCyan: "\x1b[36m",
-	FgWhite: "\x1b[37m",
-	FgGray: "\x1b[90m",
-
-	BgBlack: "\x1b[40m",
-	BgRed: "\x1b[41m",
-	BgGreen: "\x1b[42m",
-	BgYellow: "\x1b[43m",
-	BgBlue: "\x1b[44m",
-	BgMagenta: "\x1b[45m",
-	BgCyan: "\x1b[46m",
-	BgWhite: "\x1b[47m",
-	BgGray: "\x1b[100m",
 };
 
 /**
@@ -3044,6 +3015,7 @@ Evp.setOnce = function _Q_Event_prototype_setOnce(handler, key, prepend) {
 };
 
 /**
+ * Use this method to defer a function until an event has occurred.
  * Like "add" method, but removes the handler right after it has executed.
  * @method addOnce
  * @param {mixed} handler Any kind of callable which Q.handle can invoke
@@ -3053,10 +3025,15 @@ Evp.setOnce = function _Q_Event_prototype_setOnce(handler, key, prepend) {
  *  Pass a Q.Tool object here to associate the handler to the tool,
  *  and it will be automatically removed when the tool is removed.
  * @param {boolean} prepend If true, then prepends the handler to the chain
- * @return {String} The key under which the handler was set
+ * @return {String|boolean} The key under which the handler was set,
+ *  or true the handler was synchronously executed during this function call.
  */
 Evp.addOnce = function _Q_Event_prototype_addOnce(handler, key, prepend) {
 	if (!handler) return undefined;
+	if (this.occurred || this.occurring) {
+		Q.handle(handler, this.lastContext, this.lastArgs);
+		return true;
+	}
 	var event = this;
 	return key = event.add(function _addOnce() {
 		handler.apply(this, arguments);
@@ -4666,11 +4643,11 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 		}
 		ctors[name] = ctor;
 	}
-	for (name in ctors) {
-		ctor = ctors[name];
+	Q.each(ctors, function (name) {
+		var ctor = this;
 		var n = Q.normalize(name);
 		if (!overwrite && typeof _qtc[n] === 'function') {
-			continue;
+			return;
 		}
 		if (ctor == null) {
 			ctor = function _Q_Tool_default_constructor() {
@@ -4686,7 +4663,7 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 					_qtp[n] = ctor.placeholder;
 				}
 			}
-			continue;
+			return;
 		}
 		ctor.toolName = n;
 		if (!Q.isArrayLike(stateKeys)) {
@@ -4707,38 +4684,43 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 			}
 		}
 
-		var c = _qtc[n];
+		var c = _qtc[n] || {};
+		if (typeof c === 'string') {
+			if (c.split('.').pop() === 'js') {
+				c = { js: c };
+			} else {
+				c = { html: c };
+			}
+		}
 		_qtc[n] = ctor;
-
-		if (!Q.isPlainObject(c)) {
-			_loadedConstructor(ctor);
-			continue;
-		}
-		var p = new Q.Pipe(waitFor, 1, function (params) {
-			_loadedConstructor(ctor, params);
-		});
-		var waitFor = [];
 		Q.Text.addedFor('Q.Tool.define', n, c);
-		if (c.text) {
-			waitFor.push('text');
-			Q.Text.get(c.text, p.fill('text'));
-		}
-		if (c.css) {
-			waitFor.push('css');
-			Q.addStylesheet(c.css, p.fill('css'));
-		}
-		p.run();
-	}
-	return ctor;
 
-	function _loadedConstructor(ctor, params) {
-		if (params && params.text && params.text[1]) {
-			ctor.text = params.text[1];
+		if (typeof ctor !== 'function') {
+			return;
 		}
+
 		Q.extend(ctor.prototype, 10, methods);
-		Q.Tool.onLoadedConstructor(ctor.toolName).handle(ctor.toolName, ctor);
-		Q.Tool.onLoadedConstructor("").handle(ctor.toolName, ctor);
-	}
+		Q.onInit.addOnce(function () {
+			var waitFor = [];
+			var p = new Q.Pipe();
+			if (c.text) {
+				waitFor.push('text');
+				Q.Text.get(c.text, p.fill('text'));
+			}
+			if (c.css) {
+				waitFor.push('css');
+				Q.addStylesheet(c.css, p.fill('css'));
+			}
+			p.add(waitFor, 1, function (params) {
+				if (params && params.text && params.text[1]) {
+					ctor.text = params.text[1];
+				}
+				Q.Tool.onLoadedConstructor(ctor.toolName).handle(ctor.toolName, ctor);
+				Q.Tool.onLoadedConstructor("").handle(ctor.toolName, ctor);
+			}).run();
+		});
+	});
+	return ctor;
 };
 
 Q.Tool.beingActivated = undefined;
@@ -5652,24 +5634,12 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 			}
 			toolConstructor = _qtc[toolName];
 			if (typeof toolConstructor !== 'function') {
-				Q.Tool.onMissingConstructor.handle(_qtc, toolName);
-				toolConstructor = _qtc[toolName];
-				if (typeof toolConstructor !== 'function') {
-					toolConstructor = function () { log("Missing tool constructor for " + toolName); }; 
-				}
+				_handleMissingConstructor(true);
 			}
 			p.fill(toolName)(toolElement, toolConstructor, toolName, uniqueToolId, params);
 		}
 		if (toolConstructor === undefined) {
-			Q.Tool.onMissingConstructor.handle(_qtc, toolName);
-			toolConstructor = _qtc[toolName];
-			if (typeof toolConstructor !== 'function'
-			&& typeof toolConstructor !== 'string'
-			&& !(Q.isPlainObject(toolConstructor) && toolConstructor.js)) {
-				toolConstructor = function () {
-					log("Missing tool constructor for " + toolName);
-				}; 
-			}
+			_handleMissingConstructor(false);
 		}
 		if (parentId) {
 			Q.setObject([toolId, parentId], true, _toolsToInit);
@@ -5745,6 +5715,29 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 			Q.Text.get(text, pipe.fill('text'));
 		}
 		pipe.add(waitFor, 1, _loadToolScript_loaded).run();
+
+		function _handleMissingConstructor(requireFunction) {
+			var result = {};
+			Q.Tool.onMissingConstructor.handle(_qtc, toolName, result);
+			if (result.toolName) {
+				toolConstructor = _qtc[toolName] = Q.Tool.defined(result.toolName);
+				Q.Tool.onLoadedConstructor(result.toolName)
+				.add(function (n, constructor) {
+					_qtc[toolName] = constructor;
+					Q.Tool.onLoadedConstructor(toolName)
+					.handle.call(Q.Tool, toolName, constructor);
+				}, toolName);
+			}
+			if (typeof toolConstructor !== 'function'
+			&& (requireFunction || (
+				typeof toolConstructor !== 'string'
+				&& !(Q.isPlainObject(toolConstructor) && toolConstructor.js
+			)))) {
+				toolConstructor = function () {
+					log("Missing tool constructor for " + toolName);
+				}; 
+			}
+		}
 	});
 }
 
@@ -7731,12 +7724,6 @@ Q.addEventListener = function _Q_addEventListener(element, eventName, eventHandl
 		}
 		return;
 	}
-	if (element === root
-	&& detected.name === 'explorer'
-	&& detected.mainVersion <= 8
-	&& ['mousedown','mouseup','click','dblclick'].indexOf(eventName) >= 0) {
-		element = document;
-	}
 	if (element.addEventListener) {
 		element.addEventListener(eventName, handler, useCapture);
 	} else if (element.attachEvent) {
@@ -7840,12 +7827,6 @@ Q.removeEventListener = function _Q_removeEventListener(element, eventName, even
 		if (!eventName) {
 			return false;
 		}
-	}
-	if (element === root
-	&& detected.name === 'explorer'
-	&& detected.mainVersion <= 8
-	&& ['mousedown','mouseup','click','dblclick'].indexOf(eventName) >= 0) {
-		element = document;
 	}
 	if (element.removeEventListener) {
 		element.removeEventListener(eventName, handler, false);
@@ -10672,7 +10653,7 @@ function _activateTools(toolElement, options, shared) {
 			// NOTE: inside the tool constructor, after you add
 			// any child elements, call Q.activate() and Qbix
 			// will work correctly, whether it's sync or async.
-			Q.Tool.onLoadedConstructor(toolName).add(function () {
+			Q.Tool.onLoadedConstructor(toolName).addOnce(function () {
 				var _constructor = _constructors[toolName];
 				var result = new _constructor(toolElement, options);
 				var tool = Q.getObject(['Q', 'tools', toolName], toolElement);
@@ -10690,7 +10671,7 @@ function _activateTools(toolElement, options, shared) {
 				}
 				pendingCurrentEvent.handle.call(tool, options, result);
 				pendingCurrentEvent.removeAllHandlers();
-			}, 'Q.Tool.construct');
+			});
 		}
 	}, shared, null, { placeholder: true });
 }
@@ -11249,10 +11230,12 @@ Q.Text = {
 					reject(errors);
 				}
 			});
-			Q.each(names, function (i, name) {
-				var url = Q.url(dir + '/' + name + '/' + lls + '.json');
-				return func(name, url, pipe.fill(name), options);
-			});	
+			Q.onInit.addOnce(function () {
+				Q.each(names, function (i, name) {
+					var url = Q.url(dir + '/' + name + '/' + lls + '.json');
+					return func(name, url, pipe.fill(name), options);
+				});	
+			});
 		});
 	},
 
@@ -11291,6 +11274,7 @@ Q.Text = {
 		if (!d) {
 			return [];
 		}
+		objectToExtend = objectToExtend || {};
 		for (var namePrefix in d) {
 			if (!normalizedName.startsWith(namePrefix)) {
 				continue;
@@ -12490,7 +12474,7 @@ Q.Visual = Q.Pointer = {
 	 * @method cancel
 	 */
 	cancel: function _Q_Pointer_cancel(params) {
-		params.eventName = 'touchcancel mousecancel'; // mousecancel can be a custom event
+		params.eventName = 'pointercancel'; // mousecancel can be a custom event
 		return params.original;
 	},
 	/**
@@ -12559,7 +12543,7 @@ Q.Visual = Q.Pointer = {
 				if (oe.touches && oe.touches.length) {
 					return; // still some touches happening
 				}
-				Q.Pointer.touches = oe.touches;
+				Q.Pointer.touches = oe.touches || [];
 			}
 			var x = Q.Pointer.getX(e), y = Q.Pointer.getY(e);
 			var elem = (!isNaN(x) && !isNaN(y)) && Q.Pointer.elementFromPoint(x, y);
@@ -12588,7 +12572,7 @@ Q.Visual = Q.Pointer = {
 		if (!Q.info.isTouchscreen) {
 			return Q.Pointer.click(params);
 		}
-		params.eventName = Q.info.useTouchEvents ? 'touchstart' : 'mousedown';
+		params.eventName = Q.info.useTouchEvents ? 'touchstart' : 'pointerdown';
 		return function _Q_touchclick_on_wrapper (e) {
 			var _relevantClick = true;
 			var t = this, a = arguments;
@@ -13294,10 +13278,10 @@ Q.Visual = Q.Pointer = {
 			if (Q.info.isTouchscreen && !Q.Visual.isPressed(e)) {
 				return;
 			}
-			if (e.type == 'touchstart') {
-				Q.addEventListener(document.body, 'touchend mouseup', function _removeClass() {
+			if (e.type == 'pointerdown') {
+				Q.addEventListener(document.body, 'pointerup', function _removeClass() {
 					div.removeClass('Q_touchlabel_show');
-					Q.removeEventListener(document.body, 'touchend mouseup', _removeClass);
+					Q.removeEventListener(document.body, 'pointerup', _removeClass);
 				}, false, true);
 			}
 			var x = Q.Pointer.getX(e);
@@ -13367,7 +13351,7 @@ Q.Visual = Q.Pointer = {
 	 * @method cancelClick
 	 * @param {boolean} [skipMask=false] Pass true here to skip showing
 	 *   the Q.click.mask for 300 milliseconds, which blocks any
-	 *   stray clicks on mouseup or touchend, which occurs on some browsers.
+	 *   stray clicks on pointerup or touchend, which occurs on some browsers.
 	 *   You will want to skip the mask if you want to allow scrolling, for instance.
 	 * @param {Q.Event} [event] Some mouse or touch event from the DOM
 	 * @param {Object} [extraInfo] Extra info to pass to onCancelClick
@@ -13573,12 +13557,12 @@ function _stopHint(img, container) {
 }
 
 var _useTouchEvents = Q.info.useTouchEvents;
-Q.Pointer.start.eventName = _useTouchEvents ? 'touchstart' : 'mousedown';
-Q.Pointer.move.eventName = _useTouchEvents ? 'touchmove' : 'mousemove';
-Q.Pointer.end.eventName = _useTouchEvents ? 'touchend' : 'mouseup';
-Q.Pointer.cancel.eventName = _useTouchEvents ? 'touchcancel' : 'mousecancel';
-Q.Pointer.enter.eventName = _useTouchEvents ? 'touchenter' : 'mouseenter';
-Q.Pointer.leave.eventName = _useTouchEvents ? 'touchleave' : 'mouseleave';
+Q.Pointer.start.eventName = _useTouchEvents ? 'touchstart' : 'pointerdown';
+Q.Pointer.move.eventName = _useTouchEvents ? 'touchmove' : 'pointermove';
+Q.Pointer.end.eventName = _useTouchEvents ? 'touchend' : 'pointerup';
+Q.Pointer.cancel.eventName = _useTouchEvents ? 'touchcancel' : 'pointercancel';
+Q.Pointer.enter.eventName = _useTouchEvents ? 'touchenter' : 'pointerenter';
+Q.Pointer.leave.eventName = _useTouchEvents ? 'touchleave' : 'pointerleave';
 
 Q.Pointer.which.NONE = 0;
 Q.Pointer.which.LEFT = 1;
@@ -13597,20 +13581,14 @@ Q.Visual.waitUntilVisible.options = {
 	threshold: 1.0
 };
 
-Q.addEventListener(document.body, 'touchstart mousedown', function (e) {
-	if (e.type === 'mousedown') {
-		Q.Pointer.latest.which = Q.Pointer.which(e);
-	} else {
-		Q.Pointer.latest.touches = e.touches;
-	}
+Q.addEventListener(document.body, 'pointerdown', function (e) {
+	Q.Pointer.latest.which = Q.Visual.which(e);
+	Q.Pointer.latest.touches = e.touches || [];
 }, false, true);
 
-Q.addEventListener(document.body, 'touchend touchcancel mouseup', function (e) {
-	if (e.type === 'mouseup') {
-		Q.Pointer.latest.which = Q.Visual.which(e);
-	} else {
-		Q.Pointer.latest.touches = e.touches;
-	}
+Q.addEventListener(document.body, 'pointerup pointercancel', function (e) {
+	Q.Pointer.latest.which = Q.Visual.which(e);
+	Q.Pointer.latest.touches = e.touches || [];
 }, false, true);
 
 Q.Pointer.hint.options = {
@@ -13780,7 +13758,7 @@ function _onPointerMoveHandler(evt) { // see http://stackoverflow.com/a/2553717/
  * Removes event listeners that are activated when the pointer has started.
  * This method is called automatically when the mouse or fingers are released
  * on the window. However, in the code that stops propagation of the Q.Visual.end
- * event (mouseup or touchend), you'd have to call this method manually.
+ * event (pointerup or touchend), you'd have to call this method manually.
  * @method ended
  * @static
  */
@@ -14931,7 +14909,7 @@ if (!root.console) {
 root.console.log.register = function (name) {
 	return root.console.log[name] = function() {
 		var params = Array.prototype.slice.call(arguments);
-		params.unshift((name+':').consoleColor(['Bright', 'BgGray', 'FgWhite']));
+		params.unshift('%c' + name + ':', "background: gray; color: white; font-weight: bold;");
 		console.log.apply(console, params);
 	};
 };
@@ -15056,69 +15034,69 @@ Q.onInit.add(function () {
 	Q.Audio.speak.options.mute = !!Q.getObject("Audio.speak.mute", Q);
 }, 'Q');
 
+Q.Tool.define({
+	"Q/inplace": "{{Q}}/js/tools/inplace.js",
+	"Q/tabs": {
+		js: "{{Q}}/js/tools/tabs.js",
+		css: "{{Q}}/css/tabs.css"
+	},
+	"Q/form": "{{Q}}/js/tools/form.js",
+	"Q/panel": "{{Q}}/js/tools/panel.js",
+	"Q/ticker": "{{Q}}/js/tools/ticker.js",
+	"Q/timestamp": "{{Q}}/js/tools/timestamp.js",
+	"Q/countdown": "{{Q}}/js/tools/countdown.js",
+	"Q/bookmarklet": "{{Q}}/js/tools/bookmarklet.js",
+	"Q/columns": "{{Q}}/js/tools/columns.js",
+	"Q/drawers": "{{Q}}/js/tools/drawers.js",
+	"Q/expandable": "{{Q}}/js/tools/expandable.js",
+	"Q/filter": "{{Q}}/js/tools/filter.js",
+	"Q/rating": "{{Q}}/js/tools/rating.js",
+	"Q/paging": "{{Q}}/js/tools/paging.js",
+	"Q/pie": "{{Q}}/js/tools/pie.js",
+	"Q/badge": "{{Q}}/js/tools/badge.js",
+	"Q/resize": "{{Q}}/js/tools/resize.js",
+	"Q/layouts": "{{Q}}/js/tools/layouts.js",
+	"Q/carousel": "{{Q}}/js/tools/carousel.js",
+	"Q/infinitescroll": "{{Q}}/js/tools/infinitescroll.js",
+	"Q/parallax": "{{Q}}/js/tools/parallax.js",
+	"Q/lazyload": "{{Q}}/js/tools/lazyload.js",
+	"Q/audio": "{{Q}}/js/tools/audio.js",
+	"Q/video": "{{Q}}/js/tools/video.js",
+	"Q/pdf": "{{Q}}/js/tools/pdf.js",
+	"Q/image": "{{Q}}/js/tools/image.js",
+	"Q/clip": "{{Q}}/js/tools/clip.js",
+	"Q/floating": "{{Q}}/js/tools/floating.js"
+});
+
+Q.Tool.jQuery({
+	"Q/placeholders": "{{Q}}/js/fn/placeholders.js",
+	"Q/textfill": "{{Q}}/js/fn/textfill.js",
+	"Q/autogrow": "{{Q}}/js/fn/autogrow.js",
+	"Q/dialog": "{{Q}}/js/fn/dialog.js",
+	"Q/flip": "{{Q}}/js/fn/flip.js",
+	"Q/gallery": "{{Q}}/js/fn/gallery.js",
+	"Q/zoomer": "{{Q}}/js/fn/zoomer.js",
+	"Q/fisheye": "{{Q}}/js/fn/fisheye.js",
+	"Q/listing": "{{Q}}/js/fn/listing.js",
+	"Q/hautoscroll": "{{Q}}/js/fn/hautoscroll.js",
+	"Q/imagepicker": "{{Q}}/js/fn/imagepicker.js",
+	"Q/viewport": "{{Q}}/js/fn/viewport.js",
+	"Q/actions": "{{Q}}/js/fn/actions.js",
+	"Q/clickable": "{{Q}}/js/fn/clickable.js",
+	"Q/clickfocus": "{{Q}}/js/fn/clickfocus.js",
+	"Q/contextual": "{{Q}}/js/fn/contextual.js",
+	"Q/scrollIndicators": "{{Q}}/js/fn/scrollIndicators.js",
+	"Q/iScroll": "{{Q}}/js/fn/iScroll.js",
+	"Q/scroller": "{{Q}}/js/fn/scroller.js",
+	"Q/scrollbarsAutoHide": "{{Q}}/js/fn/scrollbarsAutoHide.js",
+	"Q/sortable": "{{Q}}/js/fn/sortable.js",
+	"Q/validator": "{{Q}}/js/fn/validator.js",
+	"Q/touchscroll": "{{Q}}/js/fn/touchscroll.js"
+});
+
 Q.onJQuery.add(function ($) {
 	
 	Q.$ = $;
-	
-	Q.Tool.define({
-		"Q/inplace": "{{Q}}/js/tools/inplace.js",
-		"Q/tabs": {
-			js: "{{Q}}/js/tools/tabs.js",
-			css: "{{Q}}/css/tabs.css"
-		},
-		"Q/form": "{{Q}}/js/tools/form.js",
-		"Q/panel": "{{Q}}/js/tools/panel.js",
-		"Q/ticker": "{{Q}}/js/tools/ticker.js",
-		"Q/timestamp": "{{Q}}/js/tools/timestamp.js",
-		"Q/countdown": "{{Q}}/js/tools/countdown.js",
-		"Q/bookmarklet": "{{Q}}/js/tools/bookmarklet.js",
-		"Q/columns": "{{Q}}/js/tools/columns.js",
-		"Q/drawers": "{{Q}}/js/tools/drawers.js",
-		"Q/expandable": "{{Q}}/js/tools/expandable.js",
-		"Q/filter": "{{Q}}/js/tools/filter.js",
-		"Q/rating": "{{Q}}/js/tools/rating.js",
-		"Q/paging": "{{Q}}/js/tools/paging.js",
-		"Q/pie": "{{Q}}/js/tools/pie.js",
-		"Q/badge": "{{Q}}/js/tools/badge.js",
-		"Q/resize": "{{Q}}/js/tools/resize.js",
-		"Q/layouts": "{{Q}}/js/tools/layouts.js",
-		"Q/carousel": "{{Q}}/js/tools/carousel.js",
-		"Q/infinitescroll": "{{Q}}/js/tools/infinitescroll.js",
-		"Q/parallax": "{{Q}}/js/tools/parallax.js",
-		"Q/lazyload": "{{Q}}/js/tools/lazyload.js",
-		"Q/audio": "{{Q}}/js/tools/audio.js",
-		"Q/video": "{{Q}}/js/tools/video.js",
-		"Q/pdf": "{{Q}}/js/tools/pdf.js",
-		"Q/image": "{{Q}}/js/tools/image.js",
-		"Q/clip": "{{Q}}/js/tools/clip.js",
-		"Q/floating": "{{Q}}/js/tools/floating.js"
-	});
-	
-	Q.Tool.jQuery({
-		"Q/placeholders": "{{Q}}/js/fn/placeholders.js",
-		"Q/textfill": "{{Q}}/js/fn/textfill.js",
-		"Q/autogrow": "{{Q}}/js/fn/autogrow.js",
-		"Q/dialog": "{{Q}}/js/fn/dialog.js",
-		"Q/flip": "{{Q}}/js/fn/flip.js",
-		"Q/gallery": "{{Q}}/js/fn/gallery.js",
-		"Q/zoomer": "{{Q}}/js/fn/zoomer.js",
-		"Q/fisheye": "{{Q}}/js/fn/fisheye.js",
-		"Q/listing": "{{Q}}/js/fn/listing.js",
-		"Q/hautoscroll": "{{Q}}/js/fn/hautoscroll.js",
-		"Q/imagepicker": "{{Q}}/js/fn/imagepicker.js",
-		"Q/viewport": "{{Q}}/js/fn/viewport.js",
-		"Q/actions": "{{Q}}/js/fn/actions.js",
-		"Q/clickable": "{{Q}}/js/fn/clickable.js",
-		"Q/clickfocus": "{{Q}}/js/fn/clickfocus.js",
-		"Q/contextual": "{{Q}}/js/fn/contextual.js",
-		"Q/scrollIndicators": "{{Q}}/js/fn/scrollIndicators.js",
-		"Q/iScroll": "{{Q}}/js/fn/iScroll.js",
-		"Q/scroller": "{{Q}}/js/fn/scroller.js",
-		"Q/scrollbarsAutoHide": "{{Q}}/js/fn/scrollbarsAutoHide.js",
-		"Q/sortable": "{{Q}}/js/fn/sortable.js",
-		"Q/validator": "{{Q}}/js/fn/validator.js",
-		"Q/touchscroll": "{{Q}}/js/fn/touchscroll.js"
-	});
 	
 	Q.onLoad.add(function () {
 		// Start loading some plugins asynchronously after document loads.

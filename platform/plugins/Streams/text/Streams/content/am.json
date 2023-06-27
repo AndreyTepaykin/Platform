@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "ማን ጋበዘኝ።",
         "DoYouAgree": "ትስማማለህ?",
         "Yes": "አዎ",
-        "No": "አይ"
+        "No": "አይ",
+        "JoinItNow": "አሁን ተቀላቀል?"
     },
     "login": {
         "prompt": "ጓደኞች እንዲያውቁዎት ያድርጉ፡-",
         "newUser": "ወይም ከዚህ በታች አዲስ መለያ ይፍጠሩ",
         "picTooltip": "ይህን ምስል በኋላ መቀየር ትችላለህ",
-        "placeholder": {
+        "placeholders": {
             "fullName": "ሙሉ ስምህን አስገባ"
         }
     },

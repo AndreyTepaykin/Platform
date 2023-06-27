@@ -15,6 +15,7 @@
         "Streams\/invited": "People I invited",
         "Streams\/invitedMe": "Who invited me",
         "DoYouAgree": "Do you agree?",
+        "JoinItNow": "Join it now?",
         "Yes": "Yes",
         "No": "No"
     },
@@ -22,7 +23,7 @@
         "prompt": "Let friends recognize you:",
         "newUser": "or create a new account below",
         "picTooltip": "You can change this picture later",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Enter your full name"
         }
     },

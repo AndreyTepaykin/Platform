@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Vem bjöd in mig",
         "DoYouAgree": "Håller du med?",
         "Yes": "Ja",
-        "No": "Nej"
+        "No": "Nej",
+        "JoinItNow": "Gå med nu?"
     },
     "login": {
         "prompt": "Låt vänner känna igen dig:",
         "newUser": "eller skapa ett nytt konto nedan",
         "picTooltip": "Du kan ändra den här bilden senare",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Ange ditt fullständiga namn"
         }
     },

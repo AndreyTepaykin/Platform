@@ -17,7 +17,7 @@
         "click": "kliknite",
         "yes": "Áno",
         "no": "č",
-        "Tap": "Klepnite",
+        "Tap": "Dotknite sa",
         "Click": "Kliknite",
         "Yes": "Áno",
         "No": "nie"
@@ -87,7 +87,7 @@
         "WhichInvalid": "Argument „ktorý“ je neplatný"
     },
     "alert": {
-        "title": "Upozornenie"
+        "title": "Všimnite si"
     },
     "confirm": {
         "title": "Potvrďte",

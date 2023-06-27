@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Kuka kutsui minut",
         "DoYouAgree": "Oletko samaa mieltä?",
         "Yes": "Joo",
-        "No": "Ei"
+        "No": "Ei",
+        "JoinItNow": "Liitytkö nyt?"
     },
     "login": {
         "prompt": "Anna ystävien tunnistaa sinut:",
         "newUser": "tai luo uusi tili alla",
         "picTooltip": "Voit muuttaa tätä kuvaa myöhemmin",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Kirjoita koko nimesi"
         }
     },

@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Hver bauð mér",
         "DoYouAgree": "Ertu sammála?",
         "Yes": "Já",
-        "No": "Nei"
+        "No": "Nei",
+        "JoinItNow": "Skráðu þig núna?"
     },
     "login": {
         "prompt": "Láttu vini þekkja þig:",
         "newUser": "eða stofnaðu nýjan reikning hér að neðan",
         "picTooltip": "Þú getur breytt þessari mynd síðar",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Skrifaðu fullt nafn"
         }
     },

@@ -16,13 +16,14 @@
         "Streams\/invitedMe": "Chi mi ha invitato",
         "DoYouAgree": "Sei d&#39;accordo?",
         "Yes": "SÌ",
-        "No": "NO"
+        "No": "NO",
+        "JoinItNow": "Partecipa ora?"
     },
     "login": {
         "prompt": "Fatti riconoscere dagli amici:",
         "newUser": "o crea un nuovo account qui sotto",
         "picTooltip": "Puoi cambiare questa immagine in seguito",
-        "placeholder": {
+        "placeholders": {
             "fullName": "Inserisci il tuo nome e cognome"
         }
     },

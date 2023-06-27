@@ -13,11 +13,11 @@
         "otherDomain": "Domeinuen arteko eskaera blokeatu da atzerriko domeinurako {{baseUrl}} helbidean"
     },
     "words": {
-        "tap": "sakatu",
+        "tap": "ukitu",
         "click": "egin klik",
         "yes": "bai",
         "no": "ez",
-        "Tap": "Sakatu",
+        "Tap": "Ukitu",
         "Click": "Egin klik",
         "Yes": "Bai",
         "No": "Ez"
@@ -51,7 +51,7 @@
         "encoding": "Kodeketa"
     },
     "alert": {
-        "title": "Alerta"
+        "title": "Oharra"
     },
     "confirm": {
         "title": "Berretsi",
