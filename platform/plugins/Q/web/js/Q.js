@@ -2183,80 +2183,6 @@ Q.getObject = function _Q_getObject(name, context, delimiter, create) {
 };
 
 /**
- * Use this to ensure that a property exists before running some javascript code.
- * If something is undefined, loads a script or executes a function,
- * calling the callback on success.
- * The callback is called only after the Q.onInit event has executed, so functions
- * like Q.url() and Q.addScript can be expected to work properly.
- * @static
- * @method ensure
- * @param {String} property
- *  Path to the property to test whether Q.getObject() will return undefined.
- * @param {Function} callback
- *  The callback to call when the loader has been executed.
- *  The first parameter should be the property (object, string, etc.) that's now defined.
- *  This is where you would put the code that relies on the property being defined.
- */
-Q.ensure = function _Q_ensure(property, callback) {
-	if (Q.getObject(property, root) !== undefined) {
-		Q.handle(callback, null, [property]);
-		return;
-	}
-	var loader = Q.ensure.loaders[property];
-	if (!loader) {
-		throw new Q.Error("Q.ensure: missing loader for " + property);
-	}
-	Q.onInit.addOnce(function () {
-		if (typeof loader === 'string') {
-			Q.require(loader, callback);
-		} else if (typeof loader === 'function') {
-			loader(property, callback);
-		} else if (loader instanceof Q.Event) {
-			loader.add(property, function _loaded() {
-				callback(property);
-			});
-		}
-	});
-};
-
-/**
- * Whether a page is currently being loaded
- * @property {Object} ensure.loaders
- *  Something to execute if the property was undefined and needs to be loaded.
- *  The key is the property. The value can be one of several things.
- *  If a string, this is interpreted as the URL of a javascript to load.
- *  If a function, this is called with the property and callback as arguments.
- *  If an event, the callback is added to it.
- *  The loader must call the callback and pass the property as the first parameter.
- */
-Q.ensure.loaders = {
-	'Handlebars': '{{Q}}/js/handlebars-v4.0.10.min.js',
-	'jQuery': '{{Q}}/js/jquery-3.2.1.min.js',
-	'Q.PHPJS': "{{Q}}/js/phpjs.js",
-	'IntersectionObserver': function (property, callback) {
-		if ('IntersectionObserver' in window
-		&& 'IntersectionObserverEntry' in window
-		&& 'intersectionRatio' in window.IntersectionObserverEntry.prototype) {
-			// Minimal polyfill for Edge 15's lack of `isIntersecting`
-			// See: https://github.com/w3c/IntersectionObserver/issues/211
-			if (!('isIntersecting' in window.IntersectionObserverEntry.prototype)) {
-   				  Object.defineProperty(window.IntersectionObserverEntry.prototype,
-   					  'isIntersecting', {
-   						  get: function () {
-   							  return this.intersectionRatio > 0;
-   						  }
-   					  }
-   				  );
-			}
-			return callback && callback(property);
-	 	}
-		Q.addScript('{{Q}}/js/polyfills/IntersectionObserver.js', function () {
-			callback && callback(property);
-		});
-	}
-};
-
-/**
  * Used to prevent overwriting the latest results on the client with older ones.
  * Typically, you would call this function before making some sort of request,
  * save the ordinal in a variable, and then pass it to the function again inside
@@ -3590,6 +3516,81 @@ Q.onVisibilityChange = new Q.Event();
 Q.beforeReplace = new Q.Event();
 
 /**
+ * Use this to ensure that a property exists before running some javascript code.
+ * If something is undefined, loads a script or executes a function,
+ * calling the callback on success.
+ * The callback is called only after the Q.onInit event has executed, so functions
+ * like Q.url() and Q.addScript can be expected to work properly.
+ * @static
+ * @method ensure
+ * @param {String} property
+ *  Path to the property to test whether Q.getObject() will return undefined.
+ * @param {Function} callback
+ *  The callback to call when the loader has been executed.
+ *  The first parameter should be the property (object, string, etc.) that's now defined.
+ *  This is where you would put the code that relies on the property being defined.
+ */
+Q.ensure = function _Q_ensure(property, callback) {
+	if (Q.getObject(property, root) !== undefined) {
+		Q.handle(callback, null, [property]);
+		return;
+	}
+	var loader = Q.ensure.loaders[property];
+	if (!loader) {
+		throw new Q.Error("Q.ensure: missing loader for " + property);
+	}
+	Q.onInit.addOnce(function () {
+		if (typeof loader === 'string') {
+			Q.require(loader, callback);
+		} else if (typeof loader === 'function') {
+			loader(property, callback);
+		} else if (loader instanceof Q.Event) {
+			loader.addOnce(property, function _loaded() {
+				callback(property);
+			});
+		}
+	});
+};
+
+/**
+ * Whether a page is currently being loaded
+ * @property {Object} ensure.loaders
+ *  Something to execute if the property was undefined and needs to be loaded.
+ *  The key is the property. The value can be one of several things.
+ *  If a string, this is interpreted as the URL of a javascript to load.
+ *  If a function, this is called with the property and callback as arguments.
+ *  If an event, the callback is added to it.
+ *  The loader must call the callback and pass the property as the first parameter.
+ */
+Q.ensure.loaders = {
+	'Handlebars': '{{Q}}/js/handlebars-v4.0.10.min.js',
+	'jQuery': '{{Q}}/js/jquery-3.2.1.min.js',
+	'Q.PHPJS': "{{Q}}/js/phpjs.js",
+	'Q.info.baseUrl': Q.onInit,
+	'IntersectionObserver': function (property, callback) {
+		if ('IntersectionObserver' in window
+		&& 'IntersectionObserverEntry' in window
+		&& 'intersectionRatio' in window.IntersectionObserverEntry.prototype) {
+			// Minimal polyfill for Edge 15's lack of `isIntersecting`
+			// See: https://github.com/w3c/IntersectionObserver/issues/211
+			if (!('isIntersecting' in window.IntersectionObserverEntry.prototype)) {
+   				  Object.defineProperty(window.IntersectionObserverEntry.prototype,
+   					  'isIntersecting', {
+   						  get: function () {
+   							  return this.intersectionRatio > 0;
+   						  }
+   					  }
+   				  );
+			}
+			return callback && callback(property);
+	 	}
+		Q.addScript('{{Q}}/js/polyfills/IntersectionObserver.js', function () {
+			callback && callback(property);
+		});
+	}
+};
+
+/**
  * Sets up control flows involving multiple callbacks and dependencies
  * Usage:
  * @example
@@ -4650,8 +4651,7 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 		}
 		ctors[name] = ctor;
 	}
-	Q.each(ctors, function (name) {
-		var ctor = this;
+	Q.each(ctors, function (name, ctor) {
 		var n = Q.normalize(name);
 		if (!overwrite && typeof _qtc[n] === 'function') {
 			return;
@@ -5940,7 +5940,10 @@ Q.Response.processScriptDataAndLines = function (response) {
 	if (response.scriptLines) {
 		for (var i in response.scriptLines) {
 			if (response.scriptLines[i]) {
-				eval(response.scriptLines[i]);
+				(function () {
+					eval("var Q = window.Q;"); // needed after some minification
+					eval(response.scriptLines[i]);
+				})();
 			}
 		}
 	}
@@ -9096,9 +9099,9 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 		return ret;
 	}
 
-	var o = Q.extend({}, Q.addScript.options, options),
-		firstScript = document.scripts ? document.scripts[0] : document.getElementsByTagName('script')[0],
-		container = o.container || document.head  || document.getElementsByTagName('head')[0];
+	var o = Q.extend({}, Q.addScript.options, options);
+	var firstScript = document.scripts ? document.scripts[0] : document.getElementsByTagName('script')[0];
+	var container = o.container || document.head  || document.getElementsByTagName('head')[0];
 		
 	if (!onload) {
 		onload = function() { };
@@ -9114,7 +9117,11 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 	options.info = {};
 	src = Q.url(src, null, options);
 	
-	if (!o || !o.duplicate) {
+	if (!o.duplicate) {
+		if (Q.addScript.loaded[src]) {
+			_onload();
+			return o.returnAll ? null : false;
+		}
 		var scripts = document.getElementsByTagName('script');
 		var ieStyle = _pendingIEScripts.length;
 		if (ieStyle) {
@@ -9259,19 +9266,23 @@ Q.findScript = function (src) {
  * @return {Object} object with properties "src", "path" and "file"
  */
 Q.currentScript = function (stackLevels) {
-	var result = '', index = 0, lines, parts, i, l;
-	try {
-		throw new Error();
-	} catch (e) {
-		lines = e.stack.split('\n');
-	}
-	for (i=0, l=lines.length; i<l; ++i) {
-		if (lines[i].match(/http[s]?:\/\//)) {
-			index = i + 1 + (stackLevels || 0);
-			break;
+	var src = Q.currentScript.src || Q.getObject('document.currentScript.src');
+	if (!src) {
+		var index = 0, lines, i, l;
+		try {
+			throw new Error();
+		} catch (e) {
+			lines = e.stack.split('\n');
 		}
+		for (i=0, l=lines.length; i<l; ++i) {
+			if (lines[i].match(/http[s]?:\/\//)) {
+				index = i + 1 + (stackLevels || 0);
+				break;
+			}
+		}
+		src = lines[index];
 	}
-	parts = lines[index].match(/((http[s]?:\/\/.+\/)([^\/]+\.js.*?)):/);
+	var parts = src.match(/((http[s]?:\/\/.+\/)([^\/]+\.js.*))(?!:)/);
 	return {
 		src: parts[1].split('?')[0],
 		srcWithQuerystring: parts[1],
@@ -9387,6 +9398,10 @@ Q.addStylesheet = function _Q_addStylesheet(href, media, onload, options) {
 	}
 	var container = options.container || document.getElementsByTagName('head')[0];
 
+	if (Q.addStylesheet.loaded[href]) {
+		onload();
+		return options.returnAll ? null : false;
+	}
 	if (!href) {
 		onload(false);
 		return false;
@@ -11237,9 +11252,11 @@ Q.Text = {
 					reject(errors);
 				}
 			});
-			Q.each(names, function (i, name) {
-				var url = Q.url(dir + '/' + name + '/' + lls + '.json');
-				return func(name, url, pipe.fill(name), options);
+			Q.ensure('Q.info.baseUrl', function () {
+				Q.each(names, function (i, name) {
+					var url = Q.url(dir + '/' + name + '/' + lls + '.json');
+					return func(name, url, pipe.fill(name), options);
+				});	
 			});
 		});
 	},
@@ -16095,6 +16112,7 @@ Q.globalNamesAdded = function () {
 
 /**
  * This function is useful for debugging, e.g. calling it in breakpoint conditions
+ * But you can also use console.trace()
  * @method stackTrack
  * @static
  */
