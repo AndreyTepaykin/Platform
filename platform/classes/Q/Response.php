@@ -1185,9 +1185,11 @@ class Q_Response
 	static function scriptsInline ($slotName = null, $setLoaded = false)
 	{
 		$scripts = self::scriptsArray($slotName, false);
-		if (empty($scripts))
+		if (empty($scripts)) {
 			return '';
+		}
 
+		$baseUrl = Q_Request::baseUrl();
 		$scripts_for_slots = array();
 		$loaded = array();
 		foreach ($scripts as $script) {
@@ -1218,8 +1220,10 @@ EOT;
 			}
 		}
 		$parts = array();
-		foreach ($remote_scripts_for_slots as $slot => $src) {
-			$parts[] = Q_Html::script('', array('src' => $src, 'data-slot' => $slot));
+		foreach ($remote_scripts_for_slots as $slot => $srcs) {
+			foreach ($srcs as $src) {
+				$parts[] = Q_Html::script('', array('src' => $src, 'data-slot' => $slot));
+			}
 		}
 		foreach ($scripts_for_slots as $slot => $texts) {
 			$parts[] = Q_Html::script(implode("\n\n", $texts), array('data-slot' => $slot));
@@ -1411,7 +1415,7 @@ EOT;
 
 				$ob = new Q_OutputBuffer();
 				if (Q_Valid::url($href) and !Q::startsWith($href, $baseUrl)) {
-					$imported_for_slots[$stylesheet['slot']][] = "@import url($href);";
+					$imported_for_slots[$stylesheet['slot']][$href] = "@import url($href);";
 				} else {
 					list ($href, $filename) = Q_Html::themedUrlFilenameAndHash($href);
 					if (!empty($loaded[$href])) {
@@ -1424,16 +1428,28 @@ EOT;
 					$src = parse_url($href, PHP_URL_PATH);
 					$content = $ob->getClean();
 					$content = Q_Utils::adjustRelativePaths($content, $src, $dest);
-					$sheets_for_slots[$stylesheet['slot']][] = "\n/* Rewritten and included inline from $href */\n$content";
+					$sheets_for_slots[$stylesheet['slot']][$href] = "\n$content";
 				}
 			}
 		}
 		$parts = array();
 		foreach ($imported_for_slots as $slot => $imported) {
-			$parts[] = Q_Html::tag('style', array('data-slot' => $slot), implode("\n\n", $imported));
+			foreach ($imported as $href => $content) {
+				$parts[] = Q_Html::tag(
+					'style', 
+					array('data-slot' => $slot, 'data-href' => $href),
+					$content
+				);
+			}
 		}
-		foreach ($sheets_for_slots as $slot => $texts) {
-			$parts[] = Q_Html::tag('style', array('data-slot' => $slot), implode("\n\n", $texts));
+		foreach ($sheets_for_slots as $slot => $sheets) {
+			foreach ($sheets as $href => $sheet) {
+				$parts[] = Q_Html::tag(
+					'style', 
+					array('data-slot' => $slot, 'data-href' => $href),
+					$sheet
+				);
+			}
 		}
 		// if ($setLoaded) {
 		// 	self::setScriptData('Q.addStylesheet.loaded', $loaded);
