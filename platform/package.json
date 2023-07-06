@@ -4,7 +4,7 @@
 	"author": "Qbix",
 	"homepage": "https://qbix.com/platform",
 	"license": "AGPL-1.0",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"engines": {
 		"node": ">= 0.6.0"
 	},
@@ -22,8 +22,7 @@
 		"nodemailer": "^4.4.2",
 		"nodemailer-smtp-transport": "^2.7.4",
 		"request": "2.x.x",
-		"socket.io": "2.4.1",
-		"yuidocjs": "^0.10.2"
+		"socket.io": "2.4.1"
 	},
 	"repository": {
 		"type": "git",
