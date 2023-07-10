@@ -2,6 +2,9 @@
 
 function Streams_message_response_messages()
 {
+	if (isset(Streams::$cache['extras'])) {
+		Q_Response::setSlot('extras', Streams::$cache['extras']);
+	}
 	if (isset(Streams::$cache['message'])) {
 		$message = Streams::$cache['message'];
 		return Db::exportArray(array($message->ordinal => $message));
@@ -37,10 +40,15 @@ function Streams_message_response_messages()
 	if (isset($_REQUEST['ascending'])) {
 		$ascending = $_REQUEST['ascending'];
 	}
+	$messageCount = $stream->messageCount;
 	
 	if ($withMessageTotals) {
 		Q_Response::setSlot('messageTotals', $stream->get('messageTotals'));
 	}
+	$streamType = $stream->type;
+	Q_Response::setSlot('extras', compact(
+		'publisherId', 'streamName', 'streamType', 'messageCount'
+	));
 
 	$messages = $stream->getMessages(@compact('type', 'min', 'max', 'limit', 'ascending'));
 	return Db::exportArray($messages);

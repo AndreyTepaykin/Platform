@@ -655,7 +655,7 @@ Q.Tool.define('Streams/chat', function(options) {
 		});
 	},
 
-	renderError: function(msg, err, data){
+	renderError: function(msg, message){
 		var tool = this;
 		var state = tool.state;
 
@@ -672,7 +672,7 @@ Q.Tool.define('Streams/chat', function(options) {
 
 				tool.$('.Streams_chat_noMessages').remove();
 				tool.$('.Streams_chat_messages').append(html);
-				var timestamp = data.date || Date.now()/1000;
+				var timestamp = Date.now()/1000;
 				tool.findMessage('last')
 					.find('.Streams_chat_timestamp')
 					.tool("Q/timestamp", {
@@ -800,20 +800,26 @@ Q.Tool.define('Streams/chat', function(options) {
 
 		// new message arrived
 		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/chat/message')
-		.set(function (stream, message) {
-			state.stream = stream;
+		.set(function (message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			tool.renderMessage(message);
 		}, tool);
 		// a new stream was related (including a call)
 		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/relatedTo')
-		.set(function(stream, message) {
-			state.stream = stream;
+		.set(function(message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			tool.renderMessage(message);
 		}, tool);
 		// a new stream was related (including a call)
 		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/unrelatedTo')
-		.set(function(stream, message) {
-			state.stream = stream;
+		.set(function(message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			var instructions = JSON.parse(message.instructions);
 			var fromPublisherId = Q.getObject("fromPublisherId", instructions);
 			var fromStreamName = Q.getObject("fromStreamName", instructions);
@@ -833,23 +839,29 @@ Q.Tool.define('Streams/chat', function(options) {
 
 		// new user joined
 		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/joined')
-		.set(function(stream, message) {
-			state.stream = stream;
+		.set(function(message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			var messages = tool.prepareMessages(message, 'join');
 			tool.renderNotification(Q.first(messages));
 		}, tool);
 
 		// new user left
 		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/left')
-		.set(function(stream, message) {
-			state.stream = stream;
+		.set(function(message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			var messages = tool.prepareMessages(message, 'leave');
 			tool.renderNotification(Q.first(messages));
 		}, tool);
 
 		// new user left
-		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/subscribed').set(function(stream, message) {
-			state.stream = stream;
+		Q.Streams.Stream.onMessage(state.publisherId, state.streamName, 'Streams/subscribed').set(function(message) {
+			Q.Streams.get(message.publisherId, message.streamName, function () {
+				state.stream = this;
+			});
 			$te.find('.Streams_chat_subscription').attr({
 				'data-subscribed': 'true'
 			})
@@ -966,11 +978,11 @@ Q.Tool.define('Streams/chat', function(options) {
 
 				Q.handle(state.beforePost, tool, [fields]);
 
-				Q.Streams.Message.post(fields, function(err, args) {
+				Q.Streams.Message.post(fields, function(err, message, messages, extras) {
 					blocked = false;
 					$this.removeAttr('disabled');
 					if (err) {
-						tool.renderError(err, args[0], args[1]);
+						tool.renderError(err, message, messages, extras);
 						tool.scrollToBottom();
 						return;
 					}
@@ -979,13 +991,8 @@ Q.Tool.define('Streams/chat', function(options) {
 						tool.cache.remove(key);
 					}
 
-					Q.handle(state.afterPost, tool, [fields, args]);
+					Q.handle(state.afterPost, tool, [fields, message, messages]);
 
-					state.stream.refresh(null, {
-						messages: true,
-						unlessSocket: true,
-						evenIfNotRetained: true
-					});
 					$this.val('').trigger('Q_refresh');
 					if (!Q.info.isTouchscreen && state.hadFocus) {
 						$this.plugin('Q/clickfocus');
