@@ -2952,7 +2952,7 @@ Evp.setOnce = function _Q_Event_prototype_setOnce(handler, key, prepend) {
  * Like "add" method, but removes the handler right after it has executed.
  * @method addOnce
  * @param {mixed} handler Any kind of callable which Q.handle can invoke
- * @param {String|Boolean|Q.Tool} Optional key to associate with the handler.
+ * @param {String|Boolean|Q.Tool} key optional key to associate with the handler.
  *  Used to replace handlers previously added under the same key.
  *  If the key is not provided, a unique one is computed.
  *  Pass a Q.Tool object here to associate the handler to the tool,
@@ -9470,13 +9470,13 @@ Q.addStylesheet = function _Q_addStylesheet(href, media, onload, options) {
 	link.onload = onload2;
 	link.onreadystatechange = onload2; // for IE
 	link.setAttribute('href', href);
-	var links = document.getElementsByTagName('link');
+	var elements = document.querySelectorAll('link[data-slot], style[data-slot]');
 	var insertBefore = null;
 	if (Q.allSlotNames && options.slotName) {
 		link.setAttribute('data-slot', options.slotName);
 		var slotIndex = Q.allSlotNames.indexOf(options.slotName);
-		for (var j=0; j<links.length; ++j) {
-			e = links[j];
+		for (var j=0; j<elements.length; ++j) {
+			e = elements[j];
 			var slotName = e.getAttribute('data-slot');
 			if (Q.allSlotNames.indexOf(slotName) > slotIndex) {
 				insertBefore = e;
@@ -10116,6 +10116,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 									}
 								}
 								if (!found) {
+									Q.addStylesheet.loaded[e.href] = false;
 									Q.removeElement(e);
 								}
 							}
@@ -16126,10 +16127,18 @@ Q.stackTrace = function() {
 
 /**
  * Call this inside a script element in the HTML when you don't want
- * some other scripts on the page to get its contents.
+ * some other untrusted scripts on the page to be able to read its contents.
+ * Typically, the secret contents would be enclosed in an IIFE of the corm
+ * ( function () { code here, that uses some secret JSON-encoded info } )();
  * SECURITY: Watch out. If your website allows scripts to be loaded synchronously
  * before the script which calls this method, then they can register a
  * MutationObserver to get at the textContent of the script before it's executed.
+ * Also, service workers may be able to intercept the script contents as well,
+ * so make sure they only contain trusted code.
+ * CONSIDER: If you want better security, consider using iframes with an "integrity"
+ * attribute, whose "src" attribute points to a URL on a trusted third-party
+ * domain whose CORS headers do not include access-control-allow-origin.
+ * Then use postMessage() to communicate with scripts loaded in that iframe.
  */
 Q.removeCurrentScript = function() {
 	var cs;

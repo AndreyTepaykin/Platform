@@ -51,7 +51,7 @@ function Q_before_Q_responseExtras()
 		Q_Response::setScriptData("Q.info.$k", $v);
 	}
 	if (!$ajax) {
-		$uris = Q_Config::get('Q', 'javascript', 'uris', array());
+		$uris = Q_Config::get('Q', 'javascripts', 'uris', array());
 		$urls = array();
 		foreach ($uris as $u) {
 			$urls["$u"] = Q_Uri::url("$u");
@@ -67,7 +67,7 @@ function Q_before_Q_responseExtras()
 	Q_Response::setScriptData('Q.allSlotNames', Q_Response::allSlotNames());
 	
 	// Attach stylesheets and scripts
-	foreach (Q_Config::get('Q', 'javascript', 'responseExtras', array()) as $src => $b) {
+	foreach (Q_Config::get('Q', 'javascripts', 'responseExtras', array()) as $src => $b) {
 		if (!$b) continue;
 		Q_Response::addScript($src, 'Q');
 	}
@@ -76,7 +76,7 @@ function Q_before_Q_responseExtras()
 		if ($media === true) {
 			$media = 'screen,print';
 		}
-		Q_Response::addStylesheet($src, 'Q', $media);
+		Q_Response::addStylesheet($src, 'Q', compact('media'));
 	}
 	
 	// Language and texts

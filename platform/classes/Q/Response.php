@@ -701,7 +701,7 @@ class Q_Response
 					}
 					$e = $v;
 				}
-				$options = Q_Config::get('Q', 'javascript', 'prettyPrintData', true)
+				$options = Q_Config::get('Q', 'javascripts', 'prettyPrintData', true)
 					? JSON_PRETTY_PRINT
 					: 0;
 				if (!empty($extend['Q'])) {
@@ -925,11 +925,18 @@ class Q_Response
 	 * @static
 	 * @param {string} $src
 	 * @param {string} [$slotName=null]
-	 * @param {string} [$type='text/javascript']
+	 * @param {array} [$options=array()]
+	 * @param {boolean} [$options.dontPreload=false]
+	 * @param {string} [$options.type='text/javascript']
 	 * @return {boolean} returns false if script was already added, else returns true
 	 */
-	static function addScript ($src, $slotName = null, $type = 'text/javascript')
+	static function addScript ($src, $slotName = null, $options = array())
 	{
+		$srcThemed = Q_Html::themedUrl($src);
+		self::$preload[$srcThemed] = isset($options['dontPreload'])
+			? !$options['dontPreload']
+			: Q_Config::get('Q', 'javascripts', 'preload', null);
+		$type = isset($options['array']) ? $options['array'] : 'text/javascript';
 		/**
 		 * @event Q/response/addScript {before}
 		 * @param {string} src
@@ -961,7 +968,6 @@ class Q_Response
 				return false; // already added
 		}
 		self::$scriptsForSlot[$slotName][] = @compact('src', 'type');
-
 		return true;
 	}
 
@@ -1162,7 +1168,9 @@ class Q_Response
 		$result = array();
 		foreach ($scripts as $k => $b) {
 			if ($urls) {
-				list($src, $filename, $hash) = Q_Html::themedUrlFilenameAndHash($b['src']);
+				list($src, $filename, $hash) = Q_Html::themedUrlFilenameAndHash($b['src'], array(
+					'skipFilename' => true
+				));
 				$b['src'] = $src;
 				$b['hash'] = $hash;
 			}
@@ -1248,13 +1256,13 @@ class Q_Response
 			return '';
 		}
 
-		if (!Q_Request::isAjax()) {
-			$inline = Q_Config::get('Q', 'javascript', 'inline', false);
-			if ($inline == 'page') {
-				return self::scriptsInline($slotName, true);
-			}
+		$preload = Q_Config::get('Q', 'javascripts', 'preload', null);
+		if ($preload === 'inline'
+		and !Q_Request::isAjax()
+		and !Q_Session::requestedId()) {
+			return self::scriptsInline($slotName, true);
 		}
-
+		$baseUrl = Q_Request::baseUrl();
 		$tags = array();
 		foreach ($scripts as $script) {
 			$src = '';
@@ -1268,6 +1276,15 @@ class Q_Response
 				null,
 				@compact('hash')
 			) . '</script>';
+
+			if (!Q_Request::isAjax() && !Q_Session::requestedId()
+			&& $preload === 'push' && Q::ifset(self::$preload, $src, null)
+			&& (!Q_Valid::url($src) || Q::startsWith($src, $baseUrl))) {
+				// the command below may fail because response body already started
+				$src_encoded = Q_Utils::urlencodeNonAscii($src);
+				@header("Link: <$src_encoded>; as=script; rel=preload", false);
+			}
+
 		}
 		return implode($between, $tags);
 	}
@@ -1278,12 +1295,20 @@ class Q_Response
 	 * @static
 	 * @param {string} $href
 	 * @param {string} [$slotName=null]
-	 * @param {string} [$media='screen,print']
-	 * @param {string} [$type='text/css']
+	 * @param {array} [$options=array()]
+	 * @param {boolean} [$options.dontPreload=false]
+	 * @param {string} [$options.media='screen,print']
+	 * @param {string} [$options.type='text/css']
 	 * @return {boolean} returns false if a stylesheet with exactly the same parameters has already been added, else true.
 	 */
-	static function addStylesheet ($href, $slotName = null, $media = 'screen,print', $type = 'text/css')
+	static function addStylesheet ($href, $slotName = null, $options = array())
 	{
+		$hrefThemed = Q_Html::themedUrl($href);
+		self::$preload[$hrefThemed] = isset($options['dontPreload'])
+			? !$options['dontPreload']
+			: Q_Config::get('Q', 'stylesheets', 'preload', null);
+		$media = isset($options['media']) ? $options['media'] : 'screen,print';
+		$type = isset($options['type']) ? $options['type'] : 'text/css';
 		/**
 		 * @event Q/response/addStylesheet {before}
 		 * @param {string} href
@@ -1371,7 +1396,9 @@ class Q_Response
 		$saw = array();
 		foreach ($sheets as $b)  {
 			if ($urls) {
-				list($href, $filename, $hash) = Q_Html::themedUrlFilenameAndHash($b['href']);
+				list($href, $filename, $hash) = Q_Html::themedUrlFilenameAndHash($b['href'], array(
+					'skipFilename' => true
+				));
 				$b['href'] = $href;
 				$b['hash'] = $hash;
 			}
@@ -1449,9 +1476,9 @@ class Q_Response
 				);
 			}
 		}
-		// if ($setLoaded) {
-		// 	self::setScriptData('Q.addStylesheet.loaded', $loaded);
-		// }
+		if ($setLoaded) {
+			self::setScriptData('Q.addStylesheet.loaded', $loaded);
+		}
  		return implode("", $parts);
 	}
 
@@ -1472,11 +1499,11 @@ class Q_Response
 		if (empty($stylesheets)) {
 			return '';
 		}
-		if (!Q_Request::isAjax()) {
-			$inline = Q_Config::get('Q', 'stylesheets', 'inline', false);
-			if ($inline == 'page') {
-				return self::stylesheetsInline($slotName, true);
-			}
+		$preload = Q_Config::get('Q', 'stylesheets', 'preload', null);
+		if ($preload === 'inline'
+		and !Q_Request::isAjax()
+		and !Q_Session::requestedId()) {
+			return self::stylesheetsInline($slotName, true);
 		}
 		$baseUrl = Q_Request::baseUrl();
 		$tags = array();
@@ -1487,28 +1514,17 @@ class Q_Response
 			$type = 'text/css';
 			$hash = null;
 			extract($stylesheet, EXTR_IF_EXISTS);
-			if (Q::startsWith($href, $baseUrl)) {
-				$tail = substr($href, strlen($baseUrl)+1);
-				if (!$skipPreloads) {
-					if (!empty(Q_Uri::$preload[$tail])) {
-						foreach (Q_Uri::$preload[$tail] as $preload) {
-							$parts = explode('.', $preload);
-							$ext = array_pop($parts);
-							if (empty(Q_Html::$preloadAs[$ext])) {
-								continue;
-							}
-							$tags[] = Q_Html::tag('link', array(
-								'rel' => 'preload',
-								'href' => $preload,
-								'as' => Q_Html::$preloadAs[$ext]
-							));
-						}
-					}
-				}
-			}
 			$attributes = @compact('rel', 'type', 'href', 'media');
 			$attributes['data-slot'] = $stylesheet['slot'];
 			$tags[] = Q_Html::tag('link', $attributes, null, @compact('hash'));
+
+			if (!Q_Request::isAjax() && !Q_Session::requestedId()
+			&& $preload === 'push' && Q::ifset(self::$preload, $href, null)
+			&& (!Q_Valid::url($href) || Q::startsWith($href, $baseUrl))) {
+				// the command below may fail because response body already started
+				$href_encoded = Q_Utils::urlencodeNonAscii($href);
+				@header("Link: <$href_encoded>; as=style; rel=preload", false);
+			}
 		}
 		return implode($between, $tags);
 	}
@@ -2335,6 +2351,8 @@ class Q_Response
 	 * @type string
 	 */
 	public static $language = "en";
+
+	public static $preload = array();
 
 	static public $skipResponseExtras = false;
 	static public $skipSessionExtras = false;
