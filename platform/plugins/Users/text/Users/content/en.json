@@ -154,7 +154,8 @@
     },
     "web3": {
         "WrongMethod": "Wrong contract method {{methodName}}",
-        "ChangeWallet": "Change Wallet"
+        "ChangeWallet": "Change Wallet",
+        "AfterWalletConnectedPleaseRefresh": "After wallet connected please refresh this page to recognize the wallet"
     },
     "labels": {
         "addToPhonebook": "Add To My Phone Contacts",
@@ -170,5 +171,11 @@
             "bio": "Forum engagement bot. Get your own at https:\/\/engageusers.ai",
             "website": "https:\/\/engageusers.ai"
         }
+    },
+    "errors": {
+        "NotEnoughPermissionsWallet": "Not enough permissions to read wallet of this user",
+        "ThisUserHaveNoWallet": "This user has no wallet assigned",
+        "TheWalletOfThisUserInvalid": "The wallet of this user invalid",
+        "WalletInvalid": "Wallet address invalid"
     }
 }
