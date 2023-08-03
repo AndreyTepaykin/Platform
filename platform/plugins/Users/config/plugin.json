@@ -65,6 +65,9 @@
 			"requireValidNonce": {
 				"include": ["Users"],
 				"exclude": ["Users/login", "Users/authenticate", "Users/activate"]
+			},
+			"contentSecurityPolicy": {
+				"script": ["https://connect.facebook.net"]
 			}
 		},
 		"javascript": {
@@ -73,6 +76,13 @@
 					"Users": {
 						"timestamp": 1689521256
 					}
+				}
+			}
+		},
+		"environments": {
+			"live": {
+				"prepare": {
+					"{{Users}}": ["js", "css"]
 				}
 			}
 		},
@@ -435,6 +445,27 @@
 						"symbol": "MATIC",
 						"decimals": 18
 					}
+				}
+			},
+			"wallets": {
+				"walletconnect": {
+					"name": "WalletConnect"
+				},
+				"metamask": {
+					"name": "Metamask",
+					"url": "https://metamask.app.link/dapp/{{domain}}"
+				},
+				"trustwallet": {
+					"name": "Trust Wallet",
+					"url": "https://link.trustwallet.com/open_url?url={{baseUrl}}"
+				},
+				"kaikas": {
+					"name": "Kaikas",
+					"url": "https://app.kaikas.io/u/{{domain}}"
+				},
+				"phantom": {
+					"name": "Phantom",
+					"url": "https://phantom.app/ul/browse/{{baseUrlEncoded}}"
 				}
 			}
 		},

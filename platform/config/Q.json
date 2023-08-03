@@ -52,7 +52,14 @@
 			"requireValidNonce": {
 				"include": []
 			},
-			"statusBarOverlapped": false
+			"statusBarOverlapped": false,
+			"static": {
+				"dir": "{{web}}"
+			},
+			"contentSecurityPolicy": {
+				"script": ["'unsafe-inline'", "'unsafe-eval'", "{{host}}", "*.{{host}}", "https://w.soundcloud.com"],
+				"worker": ["'self'"]
+			}
 		},
 		"response": {
 			"isBuffered": true,
@@ -171,6 +178,9 @@
 						"timeout": 600
 					}
 				}
+			},
+			"prepare": {
+				"{{Q}}": ["js", "css"]
 			}
 		},
 		"uploads": {
