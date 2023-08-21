@@ -16,6 +16,17 @@
 			"speak": {
 				"mute": false
 			}
+		},
+		"web": {
+			"contentSecurityPolicy": {
+				"script": [
+					"https://w.soundcloud.com"
+				],
+				"style": [
+					"https://w.soundcloud.com"
+				],
+				"worker": ["'self'"]
+			}
 		}
 	}
 }
