@@ -5973,9 +5973,6 @@ Q.Response.processStylesheets = function Q_Response_loadStylesheets(response, ca
 		var stylesheets = [];
 		for (var j in response.stylesheets[slotName]) {
 			var stylesheet = response.stylesheets[slotName][j];
-			if (root.StyleFix && (stylesheet.href in processStylesheets.slots)) {
-				continue; // if prefixfree is loaded, we will not even try to load these processed stylesheets
-			}
 			var key = slotName + '\t' + stylesheet.href + '\t' + stylesheet.media;
 			var elem = Q.addStylesheet(
 				stylesheet.href, stylesheet.media,
@@ -7023,10 +7020,6 @@ Q.init = function _Q_init(options) {
 		Q.Text.get(Q.Text.loadBeforeInit, p2.fill('Q.Text.loadBeforeInit'));
 	}
 	p2.add(waitFor, 1, function () {
-		var preferredLanguage = Q.getObject("loggedInUser.preferredLanguage", Q.Users);
-		if (preferredLanguage) {
-			Q.Text.setLanguage.apply(Q.Text, [preferredLanguage]);
-		}
 		p.fill('init')();
 		Q.handle(Q.onInit, Q);
 	}).run();
@@ -8418,7 +8411,7 @@ Q.request = function (url, slotNames, callback, options) {
 					return Q.handle(o.onProcessed, this, [e, content]);
 				}
 			}
-			var ret = callback && callback.call(this, err, response);
+			var ret = callback && callback.call(this, err, response, response.redirect && response.redirect.url);
 			Q.handle(o.onProcessed, this, [err, response]);
 			if (ret === false) {
 				return; // don't redirect
@@ -9933,9 +9926,10 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 		var arr = [], i, l = slotNames.length;
 		for (i=0; i<l; ++i) {
 			var slotName = slotNames[i];
-			if (!o.retainSlots[slotName]
-			|| !Q.loadUrl.retainedSlots[slotName]) {
+			if (!o.retainSlots[slotName] || Q.loadUrl.retainedSlots[slotName]) {
 				arr.push(slotName);
+			} else {
+				Q.loadUrl.retainedSlots[slotName] = document.getElementById(slotName + '_slot');
 			}
 		}
 		slotNames = arr;
@@ -10015,6 +10009,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 			_reject && _reject(e);
 			return Q.handle(onError, this, [e]);
 		}
+
 		Q.handle(o.onLoad, this, [response]);
 		var unloadedUrl = o.unloadedUrl || location.href;
 		Q.handle(o.beforeUnloadUrl, this, [unloadedUrl, url, response]);
@@ -10047,6 +10042,11 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 			// WARNING: This function may not be called if one of the scripts is missing or returns an error
 			// So the existing page will not be unloaded and the new page will not be loaded, in this case,
 			// but some of the new scripts will be added.
+
+			if (Q.Notices.toRemove) {
+				Q.handle(Q.Notice.sremove(Q.Notice.toRemove));
+				delete Q.Notices.toRemove;
+			}
 
 			var moduleSlashAction = Q.info.uri.module+"/"+Q.info.uri.action; // old page going out
 			var i, newStylesheets, newStyles;
@@ -10091,22 +10091,14 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 					}
 					Q.Event.jQueryForPage = [];
 				}
-
-				// this is where we fill all the slots
-				Q.handle(o.beforeFillSlots, Q, [response, url, o]);
-				domElements = handler(response, url, o);
-				Q.handle(o.onFillSlots, Q, [domElements, response, url, o]);
-
-				if (!o.ignoreHistory) {
-					Q.Page.push(url, Q.getObject('slots.title', response));
-				}
 			
-				if (!o.ignorePage) {
-					// Remove various elements belonging to the slots that are being reloaded
+				if (!o.ignorePage && !response.redirect) {					
+					// Mark for removal sundry elements belonging to the slots that are being reloaded
 					Q.each(['link', 'style', 'script'], function (i, tag) {
 						if (tag !== 'style' && !o.loadExtras) {
 							return;
 						}
+						Q.loadUrl.elementsToRemove[tag] = [];
 						Q.each(document.getElementsByTagName(tag), function (k, e) {
 							if (tag === 'link' && e.getAttribute('rel').toLowerCase() !== 'stylesheet') {
 								return;
@@ -10119,10 +10111,10 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 									var stylesheets = response.stylesheets[slot];
 									for (var i=0, l=stylesheets.length; i<l; ++i) {
 										var stylesheet = stylesheets[i];
-										var href1 = Q.getObject("href", stylesheet);
-										var href2 = Q.getObject("href", e);
+										var href1 = stylesheet && stylesheet.href;
+										var href2 = e && (e.href || e.getAttribute('data-href'));
 										if (href1 && href2 && href1.split("?")[0] === href2.split("?")[0]
-										&& (!stylesheet.media || stylesheet.media === e.media)) {
+										&& (!stylesheet.media || !e.media || stylesheet.media === e.media)) {
 											found = true;
 											break;
 										}
@@ -10130,20 +10122,28 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 								}
 								if (!found) {
 									Q.addStylesheet.loaded[e.href] = false;
-									Q.removeElement(e);
-								}
-							}
-
-							// now let's deal with style tags inserted by prefixfree
-							if (tag === 'style') {
-								var href = e.getAttribute('data-href');
-								if (slotNames.indexOf(processStylesheets.slots[href]) >= 0) {
-									Q.removeElement(e);
-									delete processStylesheets.slots[href];
+									Q.loadUrl.elementsToRemove[tag].push(e);
 								}
 							}
 						});
 					});
+				}
+
+				// now we can finally yank things out of the slots
+				for (var tag in Q.loadUrl.elementsToRemove) {
+					Q.each(Q.loadUrl.elementsToRemove[tag], function () {
+						Q.removeElement(this);
+					});
+				}
+				Q.loadUrl.elementsToRemove = {};
+
+				// this is where we fill all the slots
+				Q.handle(o.beforeFillSlots, Q, [response, url, o]);
+				domElements = handler(response, url, o);
+				Q.handle(o.onFillSlots, Q, [domElements, response, url, o]);
+
+				if (!o.ignoreHistory) {
+					Q.Page.push(url, Q.getObject('slots.title', response));
 				}
 			
 				if (!o.ignorePage && Q.info && Q.info.uri) {
@@ -10222,11 +10222,6 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 							if (!element) return;
 							// domElements[slotName].appendChild(element);
 							element.setAttribute('data-slot', slotName);
-							
-							// save some info before prefixfree mangles stuff
-							if (element.tagName && element.tagName.toUpperCase() === 'LINK') {
-								processStylesheets.slots[element.getAttribute('href')] = slotName;
-							}
 						});
 					});
 				});
@@ -10248,10 +10243,6 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 						throw e;
 					}
 				}
-				// Invoke prefixfree again if it was loaded
-				if (root.StyleFix) {
-					root.StyleFix.process();
-				}
 
 				Q.handle(o.onRequestProcessed, this, [err, response]);
 				
@@ -10263,6 +10254,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 };
 
 Q.loadUrl.retainedSlots = {};
+Q.loadUrl.elementsToRemove = {};
 
 Q.loadUrl.saveScroll = function _Q_loadUrl_saveScroll (fromUrl) {
 	var slotNames = Q.info.slotNames, l, elem, i;
@@ -11339,7 +11331,8 @@ Q.Text.addFor.defined = {};
 Q.Text.loadBeforeInit = [];
 
 // Set the initial language, but this can be overridden after Q.onInit
-Q.Text.setLanguage.apply(Q.Text, navigator.language.split('-'));
+var language = location.search.queryField('Q.language') || navigator.language;
+Q.Text.setLanguage.apply(Q.Text, language.split('-'));
 
 var _Q_Text_getter = Q.getter(function (name, url, callback, options) {
 	var o = Q.extend({extend: false}, options);
@@ -13240,7 +13233,7 @@ Q.Visual = Q.Pointer = {
                 Q.Visual.hint.addedListeners = true;
                 setTimeout(function () {
                     delete Q.Visual.stopHintsIgnore;
-                }, 0);
+                }, 300);
             }
             if (options.waitForEvents) {
                 return;
@@ -14955,34 +14948,11 @@ root.console.log.unregister = function (name) {
 };
 var log = root.console.log.register('Q');
 
-/**
- * This function is just here in case prefixfree.js is included
- * because that library removes the <link> elements and puts <style> instead of them.
- * We don't know if prefixfree will be included but we have to save some information
- * about the stylesheets before it arrives on the scene.
- */
-function processStylesheets() {
-	// Complain about some other libraries if necessary
-	if (Q.findScript('{{Q}}/js/prefixfree.min.js')) {
-		var warning = "Q.js must be included before prefixfree in order to work properly";
-		console.warn(warning);
-	}
-	var elements = document.querySelectorAll('link[rel=stylesheet],style[data-slot]');
-	var slots = processStylesheets.slots;
-	for (var i=0; i<elements.length; ++i) {
-		var href = elements[i].getAttribute('href')
-			|| elements[i].getAttribute('data-href');
-		slots[href] = elements[i].getAttribute('data-slot') || null;
-	}
-}
-processStylesheets.slots = {};
-processStylesheets(); // NOTE: the above works only for stylesheets included before Q.js and prefixfree.js
-
 Q.addEventListener(window, 'load', Q.onLoad.handle);
 Q.onInit.add(function () {
 	console.log("%c"+Q.info.app+" - powered by Qbix", "color: blue; font-size: 20px");
-	console.log("%c"+"Visit https://qbix.com/platform to learn how this open source platform works.", "color: black; font-size: 12px; font-weight: bold;");
-	console.log("%c"+"You too can build apps for communities, and make money from clients worldwide.", "color: black; font-size: 12px; font-weight: bold;");
+	console.log("%c"+"Visit https://qbix.com/platform to learn how this open source platform works.", "color: gray; font-size: 12px; font-weight: bold;");
+	console.log("%c"+"You too can build apps for communities, and make money from clients worldwide.", "color: gray; font-size: 12px; font-weight: bold;");
 	de.addClass(Q.info.isTouchscreen  ? 'Q_touchscreen' : 'Q_notTouchscreen');
 	de.addClass(Q.info.isMobile ? 'Q_mobile' : 'Q_notMobile');
 	de.addClass(Q.info.isAndroid() ? 'Q_android' : 'Q_notAndroid');
@@ -15324,8 +15294,14 @@ Q.loadUrl.fillSlots = function _Q_loadUrl_fillSlots (res, url, options) {
 		};
 	}
 	for (name in res.slots) {
-		// res.slots will simply not contain the slots that have
-		// already been "cached"
+		// res.slots should not contain the slots that have
+		// already been "cached", but even the server sends them,
+		// we won't use them -- the client is the boss in this case!
+		if (Q.loadUrl.retainedSlots[name]) {
+			// Slots, unlike tools, won't have the equivalent of data-Q-replace
+			// PS: this is especially needed after handling response.redirect
+			continue;
+		}
 
 		if (name.toUpperCase() === 'TITLE') {
 			document.title = res.slots[name];
@@ -16078,6 +16054,18 @@ Q.beforeInit.addOnce(function () {
 					e.removeClass('Q_fixed_top').addClass('Q_fixed_bottom');
 				}
 			}
+		}
+	}
+
+	if (Q.info.languages && Q.info.languages.length) {
+		var found = false;
+		Q.each(Q.info.languages, function (i, entry) {
+			if (entry[0] === language) {
+				found = true;
+			}
+		});
+		if (!found) {
+			Q.Text.setLanguage(Q.info.languages[0][0], Q.info.languages[0][1]);
 		}
 	}
 

@@ -2881,6 +2881,10 @@
 	};
 	var Lp = Label.prototype;
 
+	Label.isExternal = function (label) {
+		return label.startsWith(Label.externalPrefix);
+	};
+
 	/**
 	 * Labels batch getter.
 	 * @method get
@@ -3003,6 +3007,11 @@
 	Q.beforeInit.add(function _Users_beforeInit() {
 
 		var where = Q.getObject("cache.where", Users) || 'document';
+
+		var preferredLanguage = Q.getObject("loggedInUser.preferredLanguage", Q.Users);
+		if (preferredLanguage) {
+			Q.Text.setLanguage.apply(Q.Text, [preferredLanguage]);
+		}
 
 		if (Q.Frames) {
 			Users.get = Q.Frames.useMainFrame(Users.get, 'Q.Users.get');
@@ -3215,6 +3224,9 @@
 	});
 
 	Q.Page.onActivate('').add(function _Users_Q_Page_onActivate_handler() {
+		if (Users.loggedInUser) {
+			Users.loggedInUser = new Users.User(Users.loggedInUser);
+		}
 		$.fn.plugin.load('Q/placeholders');
 		$('#notices_set_email, #notices_set_mobile')
 			.on(Q.Pointer.fastclick, function () {
@@ -3327,6 +3339,8 @@
 		Web3.getContract.cache.clear();
 		ddc.className = ddc.className.replace(' Users_loggedIn', '') + ' Users_loggedOut';
 		ddc.className = ddc.className.replace(/(Users_role-\w+s)+/g, '');
+		var language = location.search.queryField('Q.language') || navigator.language;
+		Q.Text.setLanguage.apply(Q.Text, language.split('-'));
 	}, 'Users');
 	Users.onLoginLost = new Q.Event(function () {
 		console.warn("Call to server was made which normally requires user login.");

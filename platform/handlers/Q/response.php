@@ -204,27 +204,16 @@ EOT;
 		Q_Response::setScriptData("Q.info.startServiceWorker", true);
 		Q_Response::addScriptLine("
 // Start a service worker
-Q.ServiceWorker.start($cookieJarId);", null, '@end');	
+Q.ServiceWorker.start($cookieJarId);", '@end');	
 	}
 
 	if (!$added_Q_init) {
 		Q_Response::addScriptLine("
 // Now, initialize Q
 Q.init();
-", null, '@end');
+", '@end');
 		$added_Q_init = true;
 	}
-
-	// Content security policy, if any
-	$csp = Q_Config::get('Q', 'web', 'contentSecurityPolicy', array());
-	$header = 'Content-Security-Policy: ';
-	foreach ($csp as $type => $values) {
-		$header .= " $type-src " . implode(' ', $values) . ';';
-	}
-	$baseUrl = Q_Request::baseUrl();
-	$parts = parse_url($baseUrl);
-	$header = Q::interpolate($header, $parts);
-	header($header);
 
 	// Get all the usual slots for a webpage
 	Q_Response::fillSlots($slotNames, $idPrefixes);
