@@ -60,9 +60,11 @@
 				"script": [
 					"'unsafe-eval'",
 					"{{host}}", "*.{{host}}", "*.{{host}}:*", "{{host}}:*",
-					"'sha256-j+mDsMQypTNMfPMoGyHKaKeCYQSiTREPgaW5KPaDSy4='"
+					"'sha256-+DLpYKpOowitqzgnHlbJ6domBEfO5iS3HhNhDTrZ0f0='",
+					"https://w.soundcloud.com"
 				],
 				"style": [
+					"'unsafe-inline'",
 					"{{host}}", "*.{{host}}", "*.{{host}}:*", "{{host}}:*",
 					"https://fonts.googleapis.com"
 				],
