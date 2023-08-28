@@ -2576,14 +2576,15 @@ Q.timeRemaining = function (timestamp) {
  * @method zIndexTopmost
  * @static
  * @param {Element} [container=document.body] 
- * @param {Function} [filter] By default, filters out elements with Q_click_mask
+ * @param {Function} [filter] By default, filters out elements with Q_click_mask and pointer-events:none
  * @returns Number
  */
 Q.zIndexTopmost = function (container, filter) {
 	container = container || document.body;
 	filter = filter || function (element) {
-		return !element.hasClass('Q_click_mask')
-			|| element.getAttribute('id') !== 'notices_slot';
+		return element.computedStyle().pointerEvents !== 'none'
+			&& !element.hasClass('Q_click_mask')
+			&& element.getAttribute('id') !== 'notices_slot';
 	}
 	var topZ = -1;
 	Q.each(container.children, function () {
@@ -13142,17 +13143,18 @@ Q.Visual = Q.Pointer = {
                             };
                         } else {
                             point = target;
-                        }
-						var zIndex = ('zIndex' in options) ? options.zIndex : 99999;
+                        };
 						var x = point.x - img.offsetWidth * options.hotspot.x;
 						var y = point.y - img.offsetHeight * options.hotspot.y;
 						Q.extend(img.style, {
 							display: 'block',
 							left: x + 'px',
 							top: y + 'px',
-							zIndex: zIndex,
 							pointerEvents: 'none'
 						});
+						if (options.zIndex !== null) {
+							img.style.zIndex = options.zIndex;
+						}
                         var width = parseInt(img.style.width);
                         var height = parseInt(img.style.height);
 						var tooltip = null;
@@ -13621,12 +13623,12 @@ Q.addEventListener(document.body, 'pointerup pointercancel', function (e) {
 	Q.Pointer.latest.touches = e.touches || [];
 }, false, true);
 
-Q.Pointer.hint.options = {
+Q.Visual.hint.options = {
 	src: '{{Q}}/img/hints/tap.gif',
 	hotspot:  {x: 0.5, y: 0.3},
 	width: "50px",
 	height: "50px",
-	zIndex: Q.zIndexTopmost(),
+	zIndex: null,
 	neverRemove: false,
 	dontRemove: false,
 	show: {
@@ -15042,7 +15044,7 @@ Q.Tool.define({
 	"Q/inplace": "{{Q}}/js/tools/inplace.js",
 	"Q/tabs": {
 		js: "{{Q}}/js/tools/tabs.js",
-		css: "{{Q}}/css/tabs.css"
+		css: "{{Q}}/css/tools/tabs.css"
 	},
 	"Q/form": "{{Q}}/js/tools/form.js",
 	"Q/panel": "{{Q}}/js/tools/panel.js",
