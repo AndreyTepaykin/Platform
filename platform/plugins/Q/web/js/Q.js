@@ -492,7 +492,7 @@ Sp.startsWith = function _String_prototype_startsWith(prefix) {
 	if (prefix == null || this.length < prefix.length) {
 		return false;
 	}
-	return this.substr(0, prefix.length) === prefix;
+	return this.substring(0, prefix.length) === prefix;
 };
 
 /**
@@ -505,7 +505,7 @@ Sp.endsWith = function _String_prototype_endsWith(suffix) {
 	if (suffix == null || this.length < suffix.length) {
 		return false;
 	}
-	return this.substr(-suffix.length) === suffix;
+	return this.substring(this.length-suffix.length) === suffix;
 };
 
 /**
@@ -619,7 +619,7 @@ Sp.deobfuscate = function (key) {
  * @return {String}
  */
 Sp.hexToDecimal = function () {
-	var hex = this.substr(0, 2) == '0x' ? this : '0x' + this;
+	var hex = this.substring(0, 2) == '0x' ? this : '0x' + this;
 	return BigInt(hex).toString();
 };
 
@@ -1203,7 +1203,7 @@ if (!Elp.getElementsByClassName) {
 }
 
 function _parseFloat(value) {
-	return value.substr(value.length-2) == 'px' ? parseFloat(value) : 0;
+	return value.substring(value.length-2) == 'px' ? parseFloat(value) : 0;
 }
 	
 (function() {
@@ -1347,7 +1347,7 @@ Q.typeOf = function _Q_typeOf(value) {
 				return 'object';
 			}
 			return value.constructor.name;
-		} else if ((x = Object.prototype.toString.apply(value)).substr(0, 8) === "[object ") {
+		} else if ((x = Object.prototype.toString.apply(value)).substring(0, 8) === "[object ") {
 			return x.substring(8, x.length-1).toLowerCase();
 		} else {
 			return 'object';
@@ -1910,6 +1910,9 @@ Q.extend = function _Q_extend(target /* [[deep,] [levels,] anotherObject], ... [
 				ttk = (k in target) && Q.typeOf(target[k]);
 				tak = Q.typeOf(argk);
 				if (ttk === 'Q.Event') {
+					if (argk && argk.typename === 'Q.Event') {
+						argk = argk.handlers; // happens if event was serialized to JSON before
+					}
 					if (argk && argk.constructor === Object) {
 						for (m in argk) {
 							target[k].set(argk[m], m);
@@ -2081,7 +2084,7 @@ Q.mixin = function _Q_mixin(A /*, B, ... */) {
  *  Defaults to '_'. A string to replace one or more unacceptable characters.
  *  You can also change this default using the config Db/normalize/replacement
  * @param {String} characters
- *  Defaults to '/[^A-Za-z0-9]+/'. A regexp characters that are not acceptable.
+ *  Defaults to '/[^A-Za-z0-9]+/g'. A regexp characters that are not acceptable.
  *  You can also change this default using the config Db/normalize/characters
  * @param {number} numChars
  *  The maximum length of a normalized string. Default is 200.
@@ -2091,7 +2094,7 @@ Q.mixin = function _Q_mixin(A /*, B, ... */) {
 Q.normalize = function _Q_normalize(text, replacement, characters, numChars, keepCaseIntact) {
 	if (!numChars) numChars = 200;
 	if (replacement === undefined) replacement = '_';
-	characters = characters || /[^\u0041-\u005A\u0061-\u007A\u00AA\u00B5\u00BA\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0370-\u0374\u0376\u0377\u037A-\u037D\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05D0-\u05EA\u05F0-\u05F2\u0620-\u064A\u066E\u066F\u0671-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FC\u06FF\u0710\u0712-\u072F\u074D-\u07A5\u07B1\u07CA-\u07EA\u07F4\u07F5\u07FA\u0800-\u0815\u081A\u0824\u0828\u0840-\u0858\u08A0\u08A2-\u08AC\u0904-\u0939\u093D\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097F\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD\u09CE\u09DC\u09DD\u09DF-\u09E1\u09F0\u09F1\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A59-\u0A5C\u0A5E\u0A72-\u0A74\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD\u0AD0\u0AE0\u0AE1\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D\u0B5C\u0B5D\u0B5F-\u0B61\u0B71\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BD0\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C33\u0C35-\u0C39\u0C3D\u0C58\u0C59\u0C60\u0C61\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD\u0CDE\u0CE0\u0CE1\u0CF1\u0CF2\u0D05-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D\u0D4E\u0D60\u0D61\u0D7A-\u0D7F\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0E01-\u0E30\u0E32\u0E33\u0E40-\u0E46\u0E81\u0E82\u0E84\u0E87\u0E88\u0E8A\u0E8D\u0E94-\u0E97\u0E99-\u0E9F\u0EA1-\u0EA3\u0EA5\u0EA7\u0EAA\u0EAB\u0EAD-\u0EB0\u0EB2\u0EB3\u0EBD\u0EC0-\u0EC4\u0EC6\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F88-\u0F8C\u1000-\u102A\u103F\u1050-\u1055\u105A-\u105D\u1061\u1065\u1066\u106E-\u1070\u1075-\u1081\u108E\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u13A0-\u13F4\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u1700-\u170C\u170E-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176C\u176E-\u1770\u1780-\u17B3\u17D7\u17DC\u1820-\u1877\u1880-\u18A8\u18AA\u18B0-\u18F5\u1900-\u191C\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19C1-\u19C7\u1A00-\u1A16\u1A20-\u1A54\u1AA7\u1B05-\u1B33\u1B45-\u1B4B\u1B83-\u1BA0\u1BAE\u1BAF\u1BBA-\u1BE5\u1C00-\u1C23\u1C4D-\u1C4F\u1C5A-\u1C7D\u1CE9-\u1CEC\u1CEE-\u1CF1\u1CF5\u1CF6\u1D00-\u1DBF\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2071\u207F\u2090-\u209C\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2139\u213C-\u213F\u2145-\u2149\u214E\u2183\u2184\u2C00-\u2C2E\u2C30-\u2C5E\u2C60-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\u2D30-\u2D67\u2D6F\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u2E2F\u3005\u3006\u3031-\u3035\u303B\u303C\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312D\u3131-\u318E\u31A0-\u31BA\u31F0-\u31FF\u3400-\u4DB5\u4E00-\u9FCC\uA000-\uA48C\uA4D0-\uA4FD\uA500-\uA60C\uA610-\uA61F\uA62A\uA62B\uA640-\uA66E\uA67F-\uA697\uA6A0-\uA6E5\uA717-\uA71F\uA722-\uA788\uA78B-\uA78E\uA790-\uA793\uA7A0-\uA7AA\uA7F8-\uA801\uA803-\uA805\uA807-\uA80A\uA80C-\uA822\uA840-\uA873\uA882-\uA8B3\uA8F2-\uA8F7\uA8FB\uA90A-\uA925\uA930-\uA946\uA960-\uA97C\uA984-\uA9B2\uA9CF\uAA00-\uAA28\uAA40-\uAA42\uAA44-\uAA4B\uAA60-\uAA76\uAA7A\uAA80-\uAAAF\uAAB1\uAAB5\uAAB6\uAAB9-\uAABD\uAAC0\uAAC2\uAADB-\uAADD\uAAE0-\uAAEA\uAAF2-\uAAF4\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uABC0-\uABE2\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB00-\uFB06\uFB13-\uFB17\uFB1D\uFB1F-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF21-\uFF3A\uFF41-\uFF5A\uFF66-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC0-9]+/g;
+	characters = characters || /[^A-Za-z0-9]+/g;
 	if (text === undefined) {
 		debugger; // pause here if debugging
 	}
@@ -2100,11 +2103,27 @@ Q.normalize = function _Q_normalize(text, replacement, characters, numChars, kee
 	}
 	var result = text.replace(characters, replacement);
 	if (result.length > numChars) {
-		result = result.substr(0, numChars-11) + '_' 
-				 + Math.abs(result.substr(numChars-11).hashCode());
+		result = result.substring(0, numChars-11) + '_' 
+				 + Math.abs(result.substring(numChars-11).hashCode());
 	}
 	return result;
 };
+
+/**
+ * A simplified version of Q.normalize that remembers results, to avoid
+ * doing the same operation multiple times.
+ * @static
+ * @method normalize.memoized
+ * @param {String} text
+ * @return {String}
+ */
+Q.normalize.memoized = function _Q_normalize_memoized (text) {
+	if (!(text in Q.normalize.memoized.collection)) {
+		Q.normalize.memoized.collection[text] = Q.normalize(text);
+	}
+	return Q.normalize.memoized.collection[text]
+};
+Q.normalize.memoized.collection = {};
 
 function _getProp (/*Array*/parts, /*Boolean*/create, /*Object*/context){
 	var p, i = 0;
@@ -4359,7 +4378,7 @@ Q.Tool = function _Q_Tool(element, options) {
 		Q.Tool.nextDefaultId %= 1000000;
 	}
 	this.prefix = Q.Tool.calculatePrefix(this.element.id);
-	this.id = this.prefix.substr(0, this.prefix.length-1);
+	this.id = this.prefix.substring(0, this.prefix.length-1);
 
 	var activeTool = null;
 	if (activeTool = Q.Tool.byId(this.id, this.name)) {
@@ -4381,8 +4400,8 @@ Q.Tool = function _Q_Tool(element, options) {
 			parsed = JSON.parse(dataOptions);
 		} else {
 			var ios = dataOptions.indexOf(' ');
-			this.id = dataOptions.substr(0, ios);
-			var tail = dataOptions.substr(ios+1);
+			this.id = dataOptions.substring(0, ios);
+			var tail = dataOptions.substring(ios+1);
 			parsed = tail && JSON.parse(tail);
 		}
 		if (parsed) {
@@ -4396,7 +4415,7 @@ Q.Tool = function _Q_Tool(element, options) {
 	this.options = this.options || {};
 	
 	// collect options from parent ids, inner overrides outer
-	var normalizedName = Q.normalize(this.name);
+	var normalizedName = Q.normalize.memoized(this.name);
 	var pids = this.parentIds();
 	var len = pids.length;
 	var o = len ? Q.extend({}, Q.Tool.options.levels, options) : options;
@@ -4417,9 +4436,9 @@ Q.Tool = function _Q_Tool(element, options) {
 	// .Q_something
 	for (i = 0, l = classes.length; i < l; i++) {
 		var className = classes[i];
-		var cn = Q.normalize(className.substr(0, className.length-5));
+		var cn = Q.normalize.memoized(className.substring(0, className.length-5));
 		partial = o['.' + className];
-		if (partial && (className.substr(-5) !== '_tool' || cn === this.name)) {
+		if (partial && (className.substring(className.length-5) !== '_tool' || cn === this.name)) {
 			Q.extend(this.options, Q.Tool.options.levels, partial, key);
 		}
 	}
@@ -4452,7 +4471,7 @@ Q.Tool = function _Q_Tool(element, options) {
 			if (!toolName) {
 				return (this.Q.tool || null);
 			}
-			return this.Q.tools[Q.normalize(toolName)] || null;
+			return this.Q.tools[Q.normalize.memoized(toolName)] || null;
 		};
 	}
 	
@@ -4515,9 +4534,7 @@ var _toolsToInit = {};
 var _toolsWaitingForInit = {};
 
 function _toolEventFactoryNormalizeKey(key) {
-	var parts = key.split(':', 2);
-	parts[parts.length-1] = Q.normalize(parts[parts.length-1]);
-	return [parts.join(':')];
+	return [key.substring(0, 3) === 'id:' ? key : Q.normalize.memoized(key)];
 }
 
 /**
@@ -4578,7 +4595,7 @@ Q.Tool.remove = function _Q_Tool_remove(elem, removeCached, removeElementAfterLa
 		elem = tool.element;
 	}
 	if (typeof filter === 'string') {
-		filter = Q.normalize(filter);
+		filter = Q.normalize.memoized(filter);
 	}
 	Q.find(elem, true, null, function _Q_Tool_remove_found(toolElement) {
 		var tn = toolElement.Q.toolNames;
@@ -4661,7 +4678,7 @@ Q.Tool.define = function (name, /* require, */ ctor, defaultOptions, stateKeys, 
 		ctors[name] = ctor;
 	}
 	Q.each(ctors, function (name, ctor) {
-		var n = Q.normalize(name);
+		var n = Q.normalize.memoized(name); 
 		if (!overwrite && typeof _qtc[n] === 'function') {
 			return;
 		}
@@ -4754,7 +4771,7 @@ Q.Tool.defined = function (toolName) {
 	if (!toolName) {
 		return undefined;
 	}
-	return Q.Tool.constructors[Q.normalize(toolName)];
+	return Q.Tool.constructors[Q.normalize.memoized(toolName)];
 };
 
 /**
@@ -4768,7 +4785,7 @@ Q.Tool.defined = function (toolName) {
  */
 Q.Tool.define.options = function (toolName, setOptions) {
 	var options;
-	toolName = Q.normalize(toolName);
+	toolName = Q.normalize.memoized(toolName);
 	if (typeof _qtc[toolName] === 'function') {
 		options = _qtc[toolName].options;
 	} else {
@@ -4799,7 +4816,7 @@ Q.Tool.jQuery = function(name, ctor, defaultOptions, stateKeys, methods, overwri
 		}
 		return;
 	}
-	n = Q.normalize(name);
+	n = Q.normalize.memoized(name);
 	Q.Tool.names[n] = name;
 	if (typeof ctor === 'string' || typeof ctor === 'object') {
 		if (root.jQuery
@@ -4897,7 +4914,7 @@ Q.Tool.jQuery.info = function (element) {
  */
 Q.Tool.jQuery.options = function (pluginName, setOptions) {
 	var options;
-	var pluginName = Q.normalize(pluginName);
+	var pluginName = Q.normalize.memoized(pluginName);
 	if (typeof _qtc[name] === 'function') {
 		options = root.jQuery.fn[pluginName].options;
 	} else {
@@ -5021,7 +5038,7 @@ Tp.children = function Q_Tool_prototype_children(name, levels) {
 	var result = {};
 	var prefix = this.prefix;
 	var id, n, i, ids;
-	name = name && Q.normalize(name);
+	name = name && Q.normalize.memoized(name);
 	for (id in Q.Tool.active) {
 		for (n in Q.Tool.active[id]) {
 			if ((name && name != n)
@@ -5055,17 +5072,16 @@ Tp.children = function Q_Tool_prototype_children(name, levels) {
  * @return {Q.Tool|null}
  */
 Tp.child = function Q_Tool_prototype_child(append, name) {
-	name = name && Q.normalize(name);
-	var prefix2 = Q.normalize(this.prefix + (append || ""));
-	var id, ni, n;
+	name = name && Q.normalize.memoized(name);
+	var prefix2 = this.prefix + (append || "");
+	var id, n, pl = prefix2.length;
 	for (id in Q.Tool.active) {
-		ni = Q.normalize(id);
 		for (n in Q.Tool.active[id]) {
 			if (name && name != n) {
 				break;
 			}
-			if (id.length >= prefix2.length + (append ? 0 : 1)
-			&& ni.substr(0, prefix2.length) == prefix2) {
+			if (id.length >= pl + (append ? 0 : 1)
+			&& id.substring(0, pl) == prefix2) {
 				return Q.Tool.active[id][n];
 			}
 		}
@@ -5079,12 +5095,11 @@ Tp.child = function Q_Tool_prototype_child(append, name) {
  * @return {Array|null}
  */
 Tp.parentIds = function Q_Tool_prototype_parentIds() {
-	var prefix2 = Q.normalize(this.prefix), ids = [], id, ni;
+	var prefix = this.prefix, ids = [], id, pl = prefix.length;
 	for (id in Q.Tool.active) {
-		ni = Q.normalize(id);
-		if (ni.length < prefix2.length-1
-		&& ni === prefix2.substr(0, ni.length)
-		&& prefix2[ni.length] === '_') {
+		if (id.length < pl-1
+		&& id === prefix.substring(0, id.length)
+		&& prefix[id.length] === '_') {
 			ids.push(id);
 		}
 	}
@@ -5135,7 +5150,7 @@ Tp.parent = function Q_Tool_prototype_parent() {
  * @return {Q.Tool|null}
  */
 Tp.ancestor = function Q_Tool_prototype_parent(name) {
-	name = Q.normalize(name);
+	name = Q.normalize.memoized(name);
 	var parents = this.parents();
 	for (var id in parents) {
 		for (var n in parents[id]) {
@@ -5193,10 +5208,9 @@ Tp.remove = function _Q_Tool_prototype_remove(removeCached, removeElementAfterLa
 	}
 
 	// give the tool a chance to clean up after itself
-	var normalizedName = Q.normalize(this.name);
-	var normalizedId = Q.normalize(this.id);
-	_beforeRemoveToolHandlers["id:"+normalizedId] &&
-	_beforeRemoveToolHandlers["id:"+normalizedId].handle.call(this);
+	var normalizedName = Q.normalize.memoized(this.name);
+	_beforeRemoveToolHandlers["id:"+this.id] &&
+	_beforeRemoveToolHandlers["id:"+this.id].handle.call(this);
 	_beforeRemoveToolHandlers[normalizedName] &&
 	_beforeRemoveToolHandlers[normalizedName].handle.call(this);
 	_beforeRemoveToolHandlers[""] &&
@@ -5212,7 +5226,7 @@ Tp.remove = function _Q_Tool_prototype_remove(removeCached, removeElementAfterLa
 		}
 	}
 	
-	var nn = Q.normalize(this.name);
+	var nn = Q.normalize.memoized(this.name);
 	delete this.element.Q.tools[nn];
 	delete Q.Tool.active[this.id][nn];
 	var tools = Q.Tool.active[this.id];
@@ -5223,7 +5237,7 @@ Tp.remove = function _Q_Tool_prototype_remove(removeCached, removeElementAfterLa
 		this.element.Q.tool = null;
 		delete Q.Tool.active[this.id];
 	} else if (this.element.Q.tool
-	&& Q.normalize(this.element.Q.tool.name) === nn) {
+	&& Q.normalize.memoized(this.element.Q.tool.name) === nn) {
 		this.element.Q.tool = Q.Tool.byId(this.id);
 	}
 
@@ -5290,7 +5304,7 @@ Tp.forEachChild = function _Q_Tool_prototype_forEachChild(name, levels, withSibl
 		callback = withSiblings;
 		withSiblings = false;
 	}
-	name = name && Q.normalize(name);
+	name = name && Q.normalize.memoized(name);
 	var id, n;
 	var tool = this;
 	var children = tool.children(name, levels);
@@ -5326,7 +5340,19 @@ Tp.forEachChild = function _Q_Tool_prototype_forEachChild(name, levels, withSibl
  * @return {String}
  */
 Q.Tool.encodeOptions = function _Q_Tool_encodeOptions(options) {
-	var json = JSON.stringify(options).encodeHTML().replaceAll({"&quot;": '"'});
+	return JSON.stringify(options).encodeHTML().replaceAll({"&quot;": '"'});
+};
+
+/**
+ * Sets the options on the element, for example before it is retained
+ * for Q/tabs switchTo, for Q.loadUrl, or another transition.
+ * That way, the options are retained and the tool can refer to them
+ * when it's activated again, which may help skip some steps in tool.refresh()
+ * @param {Object} options You may want to do Q.extend({}, tool.options, newStuff) here
+ */
+Tp.updateElementOptions = function _Q_Tool_updateElementOptions(options) {
+	var attrName = 'data-' + this.name.replace('_', '-');
+	this.element.setAttribute(attrName, JSON.stringify(options));
 };
 
 /**
@@ -5375,7 +5401,7 @@ Q.Tool.prepare = Q.Tool.setUpElement = function _Q_Tool_prepare(element, toolNam
 		element.addClass('Q_tool '+ntt+'_tool');
 		if (toolOptions && toolOptions[i]) {
 			element.options = element.options || {};
-			element.options[Q.normalize(tn)] = toolOptions[i];
+			element.options[Q.normalize.memoized(tn)] = toolOptions[i];
 		}
 		if (!element.getAttribute('id')) {
 			if (typeof id === 'function') {
@@ -5514,7 +5540,7 @@ Q.Tool.from = function _Q_Tool_from(toolElement, toolName) {
  */
 Q.Tool.byId = function _Q_Tool_byId(id, name) {
 	if (name) {
-		name = Q.normalize(name);
+		name = Q.normalize.memoized(name);
 		return Q.Tool.active[id] ? Q.Tool.active[id][name] : null;
 	}
 	var tool = Q.Tool.active[id] ? Q.first(Q.Tool.active[id]) : null;
@@ -5536,10 +5562,10 @@ Q.Tool.byName = function _Q_Tool_byName(name) {
 	var result = {};
 	var isString = (typeof name === 'string');
 	if (isString) {
-		name = Q.normalize(name);
+		name = Q.normalize.memoized(name);
 	} else {
 		for (var i=0, l=name.length; i<l; ++i) {
-			name[i] = Q.normalize(name[i]);
+			name[i] = Q.normalize.memoized(name[i]);
 		}
 	}
 	for (var id in Q.Tool.active) {
@@ -5564,7 +5590,7 @@ Q.Tool.byName = function _Q_Tool_byName(name) {
 Q.Tool.calculatePrefix = function _Q_Tool_calculatePrefix(id) {
 	if (id.match(/_tool$/)) {
 		return id.substring(0, id.length-4);
-	} else if (id.substr(id.lengh-1) === '_') {
+	} else if (id.substring(id.lengh-1) === '_') {
 		return id;
 	} else {
 		return id + "_";
@@ -5582,7 +5608,7 @@ Q.Tool.calculatePrefix = function _Q_Tool_calculatePrefix(id) {
 Q.Tool.calculateId = function _Q_Tool_calculatePrefix(id) {
 	if (id.match(/_tool$/)) {
 		return id.substring(0, id.length-5);
-	} else if (id.substr(id.length-1) === '_') {
+	} else if (id.substring(id.length-1) === '_') {
 		return id.substring(0, id.length-1);
 	} else {
 		return id;
@@ -5619,7 +5645,7 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 		|| className.slice(-5) !== '_tool') {
 			continue;
 		}
-		toolNames.push(Q.normalize(className.substr(0, className.length-5)));
+		toolNames.push(Q.normalize.memoized(className.substring(0, className.length-5)));
 	}
 	var p = new Q.Pipe(toolNames, function (params) {
 		// now that all the tool scripts are loaded, activate the tools in the right order
@@ -5724,7 +5750,7 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 			waitFor.push('html');
 			Q.request.once(toolConstructor.html, pipe.fill('html'), { extend: false, parse: false });
 		}
-		var n = Q.normalize(toolName);
+		var n = Q.normalize.memoized(toolName);
 		var text = Q.Text.addedFor('Q.Tool.define', n, toolConstructor);
 		if (text) {
 			waitFor.push('text');
@@ -5758,7 +5784,7 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 }
 
 Q.Tool.onLoadedConstructor = Q.Event.factory({}, ["", function (name) { 
-	return [Q.normalize(name)];
+	return [Q.normalize.memoized(name)];
 }]);
 Q.Tool.onMissingConstructor = new Q.Event();
 
@@ -5854,7 +5880,7 @@ Q.Links = {
 	 */
 	telegram: function (to, text, url) {
 		if (to && to[0] === '@') {
-			return 'tg://resolve?domain=' + to.substr(1);
+			return 'tg://resolve?domain=' + to.substring(1);
 		}
 		return (url
 			? 'tg://msg_url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(text)
@@ -6837,7 +6863,7 @@ Q.Page.push = function (url, title) {
 		return false;
 	}
 	var parts = url.split('#');
-	var path = (url.substr(Q.baseUrl().length+1) || '');
+	var path = (url.substring(Q.baseUrl().length+1) || '');
 	if (history.pushState) {
 		if (typeof title === 'string') {
 			history.pushState({}, title, url);	
@@ -6865,7 +6891,7 @@ Q.Page.push = function (url, title) {
 	}
 	Q_hashChangeHandler.currentUrl = url.split('#')[0];
 	Q_hashChangeHandler.currentUrlTail = Q_hashChangeHandler.currentUrl
-		.substr(baseUrl.length + 1);
+		.substring(baseUrl.length + 1);
 	Q.info.url = url;
 	Q.handle(Q.Page.onPush, Q, [url, title, prevUrl]);
 };
@@ -7411,9 +7437,8 @@ Q.replace = function _Q_replace(container, source, options) {
 		source = s;
 	}
 	
-	var replaceElements;
+	var replaceElements = [];
 	if (options.replaceElements) {
-		replaceElements = [];
 		Q.each(options.replaceElements, function (i, e) {
 			replaceElements.push(
 				typeof e === 'string' ? document.getElementById(e) : e
@@ -7473,8 +7498,8 @@ Q.replace = function _Q_replace(container, source, options) {
 		// attached jQuery data and events, and more.
 		// However, the element's data-TOOL-NAME attribute now contains
 		// the new options.
-		Q.handle(tool.Q.onRetain, tool, [newOptions, incomingElements[id]]);
-		Q.extend(tool.state, 10, newOptions);
+		Q.handle(tool.Q.onRetain, tool, [newOpt, incomingElements[id]]);
+		Q.extend(tool.state, 10, newOpt);
 	}
 	
 	return container;
@@ -8140,7 +8165,7 @@ Q.url = function _Q_url(what, fields, options) {
 	what3 = Q.interpolateUrl(what2);
 	if (what3.isUrl()) {
 		if (what3.startsWith(baseUrl)) {
-			tail = what3.substr(baseUrl.length+1);
+			tail = what3.substring(baseUrl.length+1);
 			tail = tail.split('?')[0];
 			info = Q.getObject(tail, Q.updateUrls.urls, '/');
 		}
@@ -8177,7 +8202,7 @@ Q.url = function _Q_url(what, fields, options) {
 	} else if (what3.isUrl()) {
 		result = what3;
 	} else {
-		result = baseUrl + ((what3.substr(0, 1) == '/') ? '' : '/') + what3;
+		result = baseUrl + ((what3.substring(0, 1) == '/') ? '' : '/') + what3;
 	}
 	if (Q.url.options.beforeResult) {
 		var params = {
@@ -8491,7 +8516,7 @@ Q.request = function (url, slotNames, callback, options) {
 					return Q.handle(o.onProcessed, this, [e, content]);
 				}
 			}
-			var ret = callback && callback.call(this, err, response, response.redirect && response.redirect.url);
+			var ret = callback && callback.call(this, err, response, response && response.redirect && response.redirect.url);
 			Q.handle(o.onProcessed, this, [err, response]);
 			if (ret === false) {
 				return; // don't redirect
@@ -8577,7 +8602,7 @@ Q.request = function (url, slotNames, callback, options) {
 						onSuccess.call(xmlhttp, xmlhttp.responseText);
 					} else {
 						log("Q.request xhr: " + xmlhttp.status + ' ' 
-							+ xmlhttp.responseText.substr(xmlhttp.responseText.indexOf('<body')));
+							+ xmlhttp.responseText.substring(xmlhttp.responseText.indexOf('<body')));
 						onCancel.call(xmlhttp, xmlhttp.status);
 					}
 				}
@@ -9740,9 +9765,9 @@ Q.clientId = function () {
 	}
 	var detected = Q.Browser.detect();
 	var code = Math.floor(Date.now()/1000)*1000 + Math.floor(Math.random()*1000);
-	var ret = Q.clientId.value = (detected.device || "desktop").substr(0, 4)
-		+ "-" + Q.normalize(detected.OS.substr(0, 3))
-		+ "-" + Q.normalize(detected.name.substr(0, 3))
+	var ret = Q.clientId.value = (detected.device || "desktop").substring(0, 4)
+		+ "-" + Q.normalize.memoized(detected.OS.substring(0, 3))
+		+ "-" + Q.normalize.memoized(detected.name.substring(0, 3))
 		+ "-" + detected.mainVersion + (detected.isWebView ? "n" : "w")
 		+ "-" + code.toString(36);
 	storage.setItem("Q.clientId", ret);
@@ -9819,7 +9844,7 @@ Q.find = function _Q_find(elem, filter, callbackBefore, callbackAfter, options, 
 	if (!found && ('className' in elem) && typeof elem.className === "string" && elem.className) {
 		var classNames = elem.className.split(' ');
 		for (i=classNames.length-1; i>=0; --i) {
-			var className = Q.normalize(classNames[i]);
+			var className = Q.normalize.memoized(classNames[i]);
 			if (((typeof filter === 'string') && (filter === className))
 			|| ((filter instanceof RegExp) && filter.test(className))
 			|| ((typeof filter === 'function' && filter(className)))) {
@@ -9990,6 +10015,7 @@ Q.activate = function _Q_activate(elem, options, callback, internal) {
  * @param {Q.Event} [options.onActivate] event which occurs when all Q.activate's processed and all script lines executed
  * @param {Q.Event} [options.onLoadStart] handlers of this event will be called after the request is initiated, if "quiet" option is false they can add some visual indicators
  * @param {Q.Event} [options.onLoadEnd] handlers called after the request is fully completed, if "quiet" option is false they can add some visual indicators
+ * @param {Q.Event} [options.beforeTransition] handler called before starting to mess with styles, this is where you can save some settings
  * @param {Q.Event} [options.beforeFillSlots] handler called before filling slots with new content
  * @param {Q.Event} [options.onFillSlots] use this handler to do things with elements as soon as they are filled into the slots
  * @param {Q.Event} [options.beforeUnloadUrl] opportunity to save state around current url, such as scroll positions of displayed slots
@@ -10133,6 +10159,8 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 
 			var moduleSlashAction = Q.info.uri.module+"/"+Q.info.uri.action; // old page going out
 			var i, newStylesheets, newStyles;
+
+			Q.handle(o.beforeTransition, Q, [response, url, o]);
 			
 			var domElements = null;
 			if (o.ignorePage) {
@@ -10175,7 +10203,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 					Q.Event.jQueryForPage = [];
 				}
 			
-				if (!o.ignorePage && !response.redirect) {					
+				if (!o.ignorePage && !(response && response.redirect)) {					
 					// Mark for removal sundry elements belonging to the slots that are being reloaded
 					Q.each(['link', 'style', 'script'], function (i, tag) {
 						if (tag !== 'style' && !o.loadExtras) {
@@ -10587,7 +10615,7 @@ Q.displayDuration = function Q_displayDuration(milliseconds, forceShow) {
 Q.parseQueryString = function Q_parseQueryString(queryString, keys) {
 	if (!queryString) return {};
 	if (queryString[0] === '?' || queryString[0] === '#') {
-		queryString = queryString.substr(1);
+		queryString = queryString.substring(1);
 	}
 	var result = {};
 	Q.each(queryString.split('&'), function (i, clause) {
@@ -10605,7 +10633,7 @@ function Q_hashChangeHandler() {
 	var baseUrl = Q.baseUrl();
 	var url = location.hash.queryField('url'), result = null;
 	if (url === undefined) {
-		url = root.location.href.split('#')[0].substr(baseUrl.length + 1);
+		url = root.location.href.split('#')[0].substring(baseUrl.length + 1);
 	}
 	if (Q_hashChangeHandler.ignore) {
 		Q_hashChangeHandler.ignore = false;
@@ -10616,7 +10644,7 @@ function Q_hashChangeHandler() {
 	}
 	Q_hashChangeHandler.currentUrl = url.split('#')[0];
 	Q_hashChangeHandler.currentUrlTail = Q_hashChangeHandler.currentUrl
-		.substr(baseUrl.length + 1);
+		.substring(baseUrl.length + 1);
 	return result;
 }
 
@@ -10626,7 +10654,7 @@ function Q_popStateHandler() {
 	if (Q.info.url === url) {
 		return; // we are already at this url
 	}
-	var urlTail = url.substr(baseUrl.length + 1);
+	var urlTail = url.substring(baseUrl.length + 1);
 	if (urlTail != Q_hashChangeHandler.currentUrlTail) {
 		Q.handle(
 			url.indexOf(baseUrl) === 0 ? url : baseUrl + '/' + url,
@@ -10710,14 +10738,13 @@ function _activateTools(toolElement, options, shared) {
 					var prevTool = Q.Tool.beingActivated;
 					Q.Tool.beingActivated = this;
 					// Trigger events in some global event factories
-					var normalizedName = Q.normalize(this.name);
-					var normalizedId = Q.normalize(this.id);
+					var normalizedName = Q.normalize.memoized(this.name);
 					_constructToolHandlers[""] &&
 					_constructToolHandlers[""].handle.call(this, this.options);
 					_constructToolHandlers[normalizedName] &&
 					_constructToolHandlers[normalizedName].handle.call(this, this.options);
-					_constructToolHandlers["id:"+normalizedId] &&
-					_constructToolHandlers["id:"+normalizedId].handle.call(this, this.options);
+					_constructToolHandlers["id:"+this.id] &&
+					_constructToolHandlers["id:"+this.id].handle.call(this, this.options);
 					var args = [this.options];
 					Q.each(toolConstructor.require, function (i, n) {
 						var req = Q.Tool.from(element, n);
@@ -10732,8 +10759,8 @@ function _activateTools(toolElement, options, shared) {
 					_activateToolHandlers[""].handle.call(this, this.options);
 					_activateToolHandlers[normalizedName] &&
 					_activateToolHandlers[normalizedName].handle.call(this, this.options);
-					_activateToolHandlers["id:"+normalizedId] &&
-					_activateToolHandlers["id:"+normalizedId].handle.call(this, this.options);
+					_activateToolHandlers["id:"+this.id] &&
+					_activateToolHandlers["id:"+this.id].handle.call(this, this.options);
 					Q.Tool.beingActivated = prevTool;
 				} catch (e) {
 					debugger; // pause here if debugging
@@ -10822,8 +10849,7 @@ function _initTools(toolElement, options, shared) {
 	
 	function _doInit() {
 		var tool = this;
-		var normalizedName = Q.normalize(tool.name);
-		var normalizedId = Q.normalize(tool.id);
+		var normalizedName = Q.normalize.memoized(tool.name);
 		var waiting = _toolsWaitingForInit[tool.id];
 		if (tool.initialized || waiting) {
 			return;
@@ -10834,8 +10860,8 @@ function _initTools(toolElement, options, shared) {
 		_initToolHandlers[""].handle.call(tool, tool.options);
 		_initToolHandlers[normalizedName] &&
 		_initToolHandlers[normalizedName].handle.call(tool, tool.options);
-		_initToolHandlers["id:"+normalizedId] &&
-		_initToolHandlers["id:"+normalizedId].handle.call(tool, tool.options);
+		_initToolHandlers["id:"+this.id] &&
+		_initToolHandlers["id:"+this.id].handle.call(tool, tool.options);
 		setTimeout(function () {
 			// Let Q.find traverse the rest of the tree first,
 			// to make sure that it finds and constructs all the tools,
@@ -10948,7 +10974,7 @@ Q.Template.info = {};
  */
 Q.Template.set = function (name, content, info, overwriteEvenIfAlreadySet) {
 	var T = Q.Template;
-	var n = Q.normalize(name);
+	var n = Q.normalize.memoized(name);
 	if (!overwriteEvenIfAlreadySet && T.info[n]) {
 		return false;
 	}
@@ -10971,7 +10997,7 @@ Q.Template.set = function (name, content, info, overwriteEvenIfAlreadySet) {
  */
 Q.Template.remove = function (name) {
 	if (typeof name === 'string') {
-		delete Q.Template.collection[Q.normalize(name)];
+		delete Q.Template.collection[Q.normalize.memoized(name)];
 		Q.Template.load.cache.removeEach([name]);
 		return;
 	}
@@ -11016,7 +11042,7 @@ function _processTemplateElements(container) {
 		var element = this;
 		var id = this.id || this.getAttribute('data-name');
 		var type = this.getAttribute('data-type') || 'handlebars';
-		var n = Q.normalize(id);
+		var n = Q.normalize.memoized(id);
 		tpl[n] = this.innerHTML.decodeHTML().trim();
 		tpi[n] = {type: type};
 		Q.each(['partials', 'helpers', 'text'], function (i, aspect) {
@@ -11066,7 +11092,7 @@ Q.Template.load = Q.getter(function _Q_Template_load(name, callback, options) {
 	_processTemplateElements(document);
 
 	// check if template is cached
-	var n = Q.normalize(name);
+	var n = Q.normalize.memoized(name);
 	var info = Q.Template.info[n];
 	if (tpl && typeof tpl[n] === 'string') {
 		var result = tpl[n];
@@ -11154,7 +11180,7 @@ Q.Template.render = Q.promisify(function _Q_Template_render(name, fields, callba
 	var pba = Q.Page.beingActivated;
 	Q.loadHandlebars(function () {
 		// load the template and its associated info
-		var n = Q.normalize(templateName);
+		var n = Q.normalize.memoized(templateName);
 		var info = Q.Template.info[n];
 		var p = Q.pipe(['template', 'partials', 'helpers', 'text'], function (params) {
 			if (params.template[0]) {
@@ -11366,7 +11392,7 @@ Q.Text = {
 		}
 		Q.each(methods, function (i, m) {
 			Q.Text.addFor.defined = Q.Text.addFor.defined || {};
-			var n = Q.normalize(namePrefix);
+			var n = Q.normalize.memoized(namePrefix);
 			var obj = {};
 			obj[m] = obj[m] || {};
 			obj[m][n] = textFileNames;
@@ -11510,7 +11536,7 @@ function _connectSocketNS(ns, url, callback, earlyCallback, forceNew) {
 		var host = parsed.scheme + '://' + parsed.host 
 			+ (parsed.port ? ':'+parsed.port : '');
 		if (url.startsWith(host+'/')) {
-			o.path = url.substr(host.length) + Q.getObject('Q.info.socketPath');
+			o.path = url.substring(host.length) + Q.getObject('Q.info.socketPath');
 		}
 		_qsockets[ns][url] = qs = new Q.Socket({
 			socket: root.io.connect(host+ns, o),
@@ -12059,7 +12085,7 @@ Q.jQueryPluginPlugin = function _Q_jQueryPluginPlugin() {
 		}
 		var results = {};
 		Q.each(pluginNames, function _jQuery_plugin_loaded(i, pluginName) {
-			var pn = Q.normalize(pluginName);
+			var pn = Q.normalize.memoized(pluginName);
 			results[pn] = pluginName;
 			if ($.fn[pn]) return;
 			var src = ($.fn.plugin[pn] || 'Q/plugins/jQuery/'+pn+'.js');
@@ -12081,7 +12107,7 @@ Q.jQueryPluginPlugin = function _Q_jQueryPluginPlugin() {
 	 * @method state
 	 */
 	$.fn.state = function _jQuery_fn_state(pluginName) {
-		var key = Q.normalize(pluginName) + ' state';
+		var key = Q.normalize.memoized(pluginName) + ' state';
 		return $(this).data(key);
 	};
 	/**
@@ -15055,7 +15081,7 @@ Q.onInit.add(function () {
 	}
 	Q_hashChangeHandler.currentUrl = root.location.href.split('#')[0];
 	Q_hashChangeHandler.currentUrlTail = Q_hashChangeHandler.currentUrl
-		.substr(Q.baseUrl().length + 1);
+		.substring(Q.baseUrl().length + 1);
 	if (window.history.pushState) {
 		Q.onPopState.set(Q_popStateHandler, 'Q.loadUrl');
 	} else {
