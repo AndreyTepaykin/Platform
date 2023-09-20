@@ -1195,7 +1195,7 @@ Streams.retainWith = function (key) {
 Streams.release = function (key) {
 	key = Q.calculateKey(key);
 	if (_retainedByKey[key]) {
-		for (var ps in _retainedByKey) {
+		for (var ps in _retainedByKey[key]) {
 			if (Q.isEmpty(_retainedByStream[ps])) {
 				continue;
 			}
@@ -1204,10 +1204,10 @@ Streams.release = function (key) {
 			var streamName = parts[1];
 			delete _retainedByStream[ps][key];
 			if (Q.isEmpty(_retainedByStream[ps])) {
-				Streams.neglect(publisherId, streamName);
+				Stream.neglect(publisherId, streamName);
+				var stream = _retainedStreams[ps];
 				delete(_retainedByStream[ps]);
 				delete(_retainedStreams[ps]);
-				var stream = _retainedStreams[ps];
 				Q.handle([
 					Stream.onRelease.ifAny(publisherId, ""),
 					Stream.onRelease.ifAny(publisherId, streamName),
