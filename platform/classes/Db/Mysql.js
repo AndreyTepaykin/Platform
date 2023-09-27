@@ -167,7 +167,7 @@ function Db_Mysql(connName, dsn) {
 		info = this.info(shardName, modifications);
 		var options = info.options || {};
 		options.typeCast = function (field, next) {
-			if (field.type !== 'VARBINARY') {
+			if (field.type !== 'VAR_STRING') {
 				return next();
 			}
 			var found = false;
