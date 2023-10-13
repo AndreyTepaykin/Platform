@@ -107,7 +107,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
 
 {
     userId: null,
-    filter: ['Users/'],
+    filter: ['Users/', '<<< web3/'],
     exclude: null,
     contactUserId: null,
     contactUserId_xid: null,
@@ -222,6 +222,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
                         var $img = $('img', $dialog);
                         var $addButton = $("button[name=addLabel]", $dialog);
                         var $updateButton = $("button[name=editLabel]", $dialog);
+                        var $canManageButton = $("button[name=canManageLabel]", $dialog);
                         var $inputTitle = $("input[name=title]", $dialog);
                         var $rolePlace = $("select[name=rolePlace]", $dialog);
 
@@ -332,6 +333,23 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
                             });
 
                         }
+                        
+                        if ($canManageButton.length == 1) {
+                            $canManageButton.off(Q.Pointer.fastclick).on(Q.Pointer.fastclick, function () {
+                                tool.element.addClass('Q_loading');
+                                
+                                Q.Dialogs.push({
+                                    title: "Can Manage Roles",
+                                    apply: true,
+                                    content: "TBD",
+                                    onActivate: function (dialog) {
+                                        tool.element.removeClass('Q_loading');
+                                    }
+                                })
+                                
+                                
+                            });
+                        }
 
                         var saveSizeName = {};
                         Q.each(Users.icon.sizes, function (k, v) {
@@ -365,14 +383,14 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
      * Handler happens when user clicking by label when editable option == false
      * @param {type} wasSelected was select or no before user click
      * @param {type} label label
-     * @param {type} _callback
+     * @param {type} _callback Expects err, ret, develop_error
      */
     onSelect: function(wasSelected, label, _callback){
         var tool = this;
 		var state = this.state;
         
         if (Q.isEmpty(state.contactUserId)) {
-            return;
+            return Q.handle(_callback, tool, [null, null, null]);
         }
         
         if (Q.Users.Label.isExternal(label)) {
@@ -673,7 +691,6 @@ Q.Template.set('Users/labels/manage/add', `
                 class="{{#if this.isOwner}}{{else}}Q_disabled{{/if}}"
             >
             {{this.name}}
-    {{this.communityAddress}}|{{this.userWallet}}
             </option>
             {{/each}}
             {{/if}}
@@ -696,6 +713,9 @@ Q.Template.set('Users/labels/manage/edit', `
     </div>
     <div class="form-group">
         <input name="title" type="text" value="{{title}}" placeholder="{{titlePlaceholder}}" class="form-control">
+    </div>
+    <div class="form-group">
+        <button name="canManageLabel" class="Q_button">{{canManageBtn}}</button>
     </div>
     <button name="editLabel" class="Q_button">{{editBtn}}</button>
 </div>

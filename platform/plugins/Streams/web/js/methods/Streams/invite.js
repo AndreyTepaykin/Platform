@@ -524,9 +524,7 @@ Q.exports(function() {
                         if (Q.isEmpty(r)) {
                             return;
                         }
-                        for (var option in r) {
-                            o[option] = r[option];
-                        }
+                        o.assign = r;
                         if (r.sendBy) {
                             _sendBy(r, text);
                         } else {
@@ -541,7 +539,9 @@ Q.exports(function() {
                 return new Promise(function (resolve, reject) {
                     Q.req('Users/roles', ['canGrant', 'canRevoke', 'canSee'], function (err, response) {
                         resolve(response);
-                    })
+                    }, {
+                        communityId: Q.Users.communityId
+                    });
                 });
             }
 
