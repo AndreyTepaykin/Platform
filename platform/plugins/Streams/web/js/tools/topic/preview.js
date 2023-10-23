@@ -18,25 +18,29 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
 
     if (preview.state.streamName) {
         $toolElement.on(Q.Pointer.fastclick, function () {
-            Q.handle(state.onInvoke, tool, [tool.stream, $(".Streams_course_image", $toolElement.closest(".Streams_course_tool")).css("background-image")]);
+            Q.handle(state.onInvoke, tool, [tool.stream]);
         });
     }
 },
 {
     imagepicker: {
-        showSize: "400",
+        showSize: "80",
         fullSize: "400",
     },
     completed: false,
-    onInvoke: new Q.Event(function (stream, courseIcon) {
+    onInvoke: new Q.Event(function (stream) {
         var tool = this;
         Q.invoke({
             title: stream.fields.title,
-            url: Q.url('topic/' + stream.fields.publisherId + '/' + stream.fields.name.split('/').pop()),
-            columnClass: 'JGR_column_topic',
+            name: "topic",
+            content: $("<div>").tool("Streams/topic", {
+                publisherId: stream.fields.publisherId,
+                streamName: stream.fields.name
+            }),
+            columnClass: 'Streams_column_topic',
             trigger: tool.element,
             onActivate: function (options, index, div, data) {
-                $(".Streams_topic_bg", div).css("background-image", courseIcon);
+                
             }
         });
     })
@@ -48,6 +52,8 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
         var $toolElement = $(tool.element);
         var previewState = tool.preview.state;
         tool.stream = stream;
+
+        stream.retain(tool);
 
         // this makes visible green checkpoint and progress
         // TODO: make it work
@@ -87,7 +93,7 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
                     previewState.actions.actions.edit = function () {
                         tool.update(function () {
                             stream.refresh(function () {
-                                tool.preview.icon($("img.Streams_topic_preview_icon", tool.element)[0]);
+
                             }, {
                                 changed: {icon: true},
                                 messages: true,
@@ -168,7 +174,16 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
                 var $save = $("button[name=save]", $dialog);
 
                 // apply Streams/preview icon behavior
-                tool.preview.icon($icon[0]);
+                $("<div>").tool("Streams/preview", {
+                    publisherId: tool.stream.fields.publisherId,
+                    streamName: tool.stream.fields.name
+                }).activate(function () {
+                    this.icon($icon[0], null, {
+                        overrideShowSize: {
+                            "": "400.png"
+                        }
+                    });
+                });
 
                 // create topic
                 $save.on(Q.Pointer.fastclick, function (event) {
