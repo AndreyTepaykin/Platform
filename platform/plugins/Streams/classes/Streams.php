@@ -339,6 +339,7 @@ abstract class Streams extends Base_Streams
 	 *   Later on, you should tell $stream->save() or $stream->changed() to commit the transaction.
 	 *  @param {boolean} [$options.refetch] Ignore cache of previous calls to fetch, 
 	 *   and save a new cache if necessary.
+	 *  @param {boolean} [$options.cacheEmptyAlso] Pass true to cache even an empty result
 	 *  @param {boolean} [$options.dontCache] Do not cache the results of
 	 *   fetching the streams
 	 *  @param {boolean} [$options.withParticipant=false]
@@ -398,7 +399,9 @@ abstract class Streams extends Base_Streams
 			$namesToFetch = array();
 			foreach ($arr as $n) {
 				if (isset(self::$fetch[$asUserId][$publisherId][$n][$fields])) {
-					$allCached[$n] = self::$fetch[$asUserId][$publisherId][$n][$fields];
+					if (self::$fetch[$asUserId][$publisherId][$n][$fields] !== false) {
+						$allCached[$n] = self::$fetch[$asUserId][$publisherId][$n][$fields];
+					}
 				} else {
 					$namesToFetch[] = $n;
 				}
@@ -514,12 +517,19 @@ abstract class Streams extends Base_Streams
 			 * @param {string} fields
 			 * @param {array} options also contains "duringInternal", may want to return early in that case
 			 */
-			Q::event("Streams/fetch/$type", $params, 'after', false, $streams);
+			Q::event("Streams/fetch/$type", $params, 'after', false);
 		}
 
 		if (!self::$dontCache and empty($options['dontCache'])) {
 			foreach ($streams as $n => $stream) {
 				self::$fetch[$asUserId][$publisherId][$n][$fields] = $stream;
+			}
+			if (!empty($options['cacheEmptyAlso'])) {
+				foreach ($namesToFetch as $n) {
+					if (!isset($streams[$n])) {
+						self::$fetch[$asUserId][$publisherId][$n][$fields] = false;
+					}
+				}
 			}
 		}
 		if ($restoreCaching) {
@@ -531,13 +541,15 @@ abstract class Streams extends Base_Streams
 	/**
 	 * Fetches public streams from the database, even from multiple publishers.
 	 * Unlike Streams::fetch(), this method doesn't check the access control,
-	 * because the streams should be accessible to be read by anybody.
-	 * It simply returns the Streams_Stream rows with their own read/write/admin levels.
+	 * because the stream content should be accessible to be read by anybody,
+	 * i.e. at least testReadLevel('content').
+	 * It simply returns the Streams_Stream rows with their own public read/write/admin levels.
 	 * Also, it skips any sort of template and mutable stuff.
 	 * @method fetchPublicStreams
 	 * @static
 	 * @param {array} $publishersAndNames
 	 *  Array of ($publisherId => $namesArray) pairs
+	 * @param {string} [$fields="*"]
 	 * @return {array}
 	 *  Returns an array of Streams_Stream objects indexed by
 	 *  $publisherId => $name => $stream
@@ -546,8 +558,7 @@ abstract class Streams extends Base_Streams
 	static function fetchPublicStreams(
 		$publishersAndNames,
 		$fields = '*',
-		$options = array(),
-		&$results = array())
+		$options = array())
 	{
 		if ($fields === '*') {
 			$fields = join(',', Streams_Stream::fieldNames());
@@ -563,9 +574,9 @@ abstract class Streams extends Base_Streams
 		))->fetchDbRows();
 		$streams = array();
 		foreach ($rows as $row) {
-			$row->set('public', true);
-			if ($row->readLevel === Streams::$READ_LEVEL['max']) {
-				// make sure the stream really has max read level
+			// make sure the stream really has testReadLevel('content')
+			if ($row->readLevel >= Streams::$READ_LEVEL['content']) {
+				$row->set('public', true);
 				$streams[$row->publisherId][$row->name] = $row;
 			}
 		}
