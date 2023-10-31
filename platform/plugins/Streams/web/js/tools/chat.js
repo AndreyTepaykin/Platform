@@ -139,7 +139,7 @@ Q.Tool.define('Streams/chat', function(options) {
 	},
 	allowedRelatedStreams: Q.getObject("chat.allowedRelatedStreams", Q.Streams) || [],
 	seen: true,
-	scrollToBottom: true,
+	scrollToComposer: true,
 	overflowed: {
 		srcToMe: '{{Streams}}/img/chat/message-overflowed-to-me.png',
 		srcFromMe: '{{Streams}}/img/chat/message-overflowed-from-me.png',
@@ -755,7 +755,7 @@ Q.Tool.define('Streams/chat', function(options) {
 		});
 		// TODO: don't scroll to bottom, show "V 10 new messages" button
 		// on the bottom left of Streams/chat, and then jump to bottom and refresh
-		tool.scrollToBottom();
+		tool.scrollToComposer();
 	},
 	addEvents: function(){
 		var tool    = this,
@@ -922,9 +922,9 @@ Q.Tool.define('Streams/chat', function(options) {
 
 		// when virtual keyboard appear, trying to scroll body to input element position
 		$input.on('focus', function () {
-			tool.scrollToBottom();
+			tool.scrollToComposer();
 			setTimeout(function () {
-				tool.scrollToBottom();
+				tool.scrollToComposer();
 			}, 500);
 		});
 
@@ -983,7 +983,7 @@ Q.Tool.define('Streams/chat', function(options) {
 					$this.removeAttr('disabled');
 					if (err) {
 						tool.renderError(err, message, messages, extras);
-						tool.scrollToBottom();
+						tool.scrollToComposer();
 						return;
 					}
 
@@ -1156,14 +1156,23 @@ Q.Tool.define('Streams/chat', function(options) {
 		return null;
 	},
 
-	scrollToBottom: function _scrollToBottom(callback, stayAtBottomUntilUserScroll) {
-		var stopScrollingToBottom;
+	scrollToBottom: function _scrollToBottom() {
+		this.scrollToComposer.apply(this, arguments);
+	},
+
+	scrollToComposer: function _scrollToComposer(callback, stayAtComposerUntilUserScroll) {
+		var $composer = this.$('.Streams_chat_composer');
+		var isTextarea = (this.state.inputType === 'textarea');
+		var sel1 = '.Streams_chat_composer textarea';
+		var sel2 = '.Streams_chat_composer input[type=text]';
+		var $input = this.$(isTextarea ? sel1: sel2);
+		var stopScrollingToComposer;
 		var tool = this;
 		var state = this.state;
 		var $scrolling = null;
-		_doScrollToBottom(false);
-		function _doScrollToBottom (recursive) {
-			if (stopScrollingToBottom
+		_doScrollToComposer(false);
+		function _doScrollToComposer (recursive) {
+			if (stopScrollingToComposer
 			|| !$(tool.element).is(':visible')) {
 				return;
 			}
@@ -1186,34 +1195,46 @@ Q.Tool.define('Streams/chat', function(options) {
 				}
 			}
 			if (!$scrolling || !$scrolling.length) {
-				_stayAtBottom();
+				_stayAtComposer();
 				return null;
 			}
 			var s = $scrolling[0];
 			s.addClass('Q_forceDisplayBlock');
 			var scrollHeight = s.scrollHeight;
 			s.removeClass('Q_forceDisplayBlock');
-			if (recursive) {
-				s.scrollTop = scrollHeight;
-				_stayAtBottom();
-			} else {
-				$scrolling.animate({
-					scrollTop: scrollHeight
-				}, state.animations.duration, function () {
-					stopScrollingToBottom = false;
-					_stayAtBottom();
-					Q.handle(callback, null, [s]);
-				});
+			var c = $composer[0];
+			if (c) {
+				var m = c.scrollIntoViewIfNeeded ||  c.scrollIntoView;
+				if (recursive) {
+					m.call(c, {
+						behavior: "instant",
+						block: "nearest",
+						inline: "nearest"
+					});
+					s.scrollTop = scrollHeight;
+					_stayAtComposer();
+				} else {
+					m.call(c, {
+						behavior: "smooth",
+						block: "nearest",
+						inline: "nearest"
+					});
+					setTimeout(function () {
+						stopScrollingToComposer = false;
+						_stayAtComposer();
+						Q.handle(callback, null, [s]);
+					}, 500);
+				}
 			}
 			return $scrolling;
 		}
-		function _stayAtBottom() {
-			if (!stayAtBottomUntilUserScroll) {
+		function _stayAtComposer() {
+			if (!stayAtComposerUntilUserScroll) {
 				return;
 			}
-			if (!stopScrollingToBottom) {
+			if (!stopScrollingToComposer) {
 				setTimeout(function () {
-					_doScrollToBottom(true);
+					_doScrollToComposer(true);
 				}, 300);
 			}
 			$scrolling.off('scroll.Streams_chat')
@@ -1221,7 +1242,7 @@ Q.Tool.define('Streams/chat', function(options) {
 				var t = event.target;
 				if (t.scrollTop + 1 < t.scrollHeight - t.clientHeight) {
 					// user started scrolling manually
-					stopScrollingToBottom = true;
+					stopScrollingToComposer = true;
 					$scrolling.off('scroll.Streams_chat');
 				}
 			});
@@ -1270,7 +1291,7 @@ Q.Tool.define('Streams/chat', function(options) {
 					// all message bubbles should have stabilized
 					// their height at this point
 					Q.Visual.waitUntilAnimationsEnd(function () {
-						tool.scrollToBottom(null, true);
+						tool.scrollToComposer(null, true);
 					});
 				});
 			});
