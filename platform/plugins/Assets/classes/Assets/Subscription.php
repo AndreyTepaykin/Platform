@@ -9,9 +9,9 @@
  * @class Assets_Subscription
  */
 
-abstract class Assets_Subscription
-{
+class Assets_Subscription {
 	public static $streamType = "Assets/subscription";
+	public static $relationType = "Assets/subscription/related";
 
 	/**
 	 * Starts a recurring subscription
@@ -50,7 +50,8 @@ abstract class Assets_Subscription
 			$stream = Streams::create($user->id, $user->id, self::$streamType,
 				array(
 					'title' => $plan->title,
-					'attributes' => $attributes
+					'attributes' => $attributes,
+					'skipAccess' => true
 				),
 				array(
 					'publisherId' => $plan->publisherId,
@@ -65,13 +66,16 @@ abstract class Assets_Subscription
 		$stream->setAttribute('lastChargeTime', time());
 		$stream->changed();
 
+		// apply label to user
+		Users_Contact::addContact($plan->publisherId, $plan->name, $user->id, '', null, false, true);
+
 		/**
 		 * @event Assets/startSubscription {before}
 		 * @param {Streams_Stream} plan
 		 * @param {Streams_Stream} subscription
 		 * @return {Users_User}
 		 */
-		Q::event('Assets/startSubscription', @compact('plan', 'user', 'publisher', 'stream', 'months', 'currency'), 'after');
+		Q::event('Assets/startSubscription', @compact('plan', 'user', 'stream', 'currency'), 'after');
 
 		return $stream;
 	}
@@ -209,8 +213,97 @@ abstract class Assets_Subscription
 				$earliestTime = strtotime("-1 day", $time);
 				break;
 			default:
-				throw new Q_Exception_RequiredField(array('field' => 'annually, months, weeks, days'));
+				throw new Q_Exception_RequiredField(array('field' => 'annually, monthly, weekly, daily'));
 		}
 		return $lastChargeTime >= $earliestTime;
+	}
+
+	/**
+	 * Check if stream related to some subscription plans
+	 * @method checkStreamRelated
+	 * @param {Streams_Stream} $stream The stream need to check
+	 * @return {boolean|Array}
+	 */
+	static function checkStreamRelated ($stream) {
+		$relations = Streams_RelatedTo::select()->where(array(
+			'type' => self::$relationType,
+			'fromPublisherId' => $stream->publisherId,
+			'fromStreamName' => $stream->name
+		))->fetchDbRows();
+
+		if (empty($relations)) {
+			return false;
+		}
+
+		$assetsPlans = [];
+		foreach ($relations as $relation) {
+			$assetsPlans[] = Streams::fetchOne(null, $relation->toPublisherId, $relation->toStreamName, true);
+		}
+
+		return $assetsPlans;
+	}
+
+	/**
+	 * Check if stream under some subscription plans and paid by user
+	 * @method checkStreamPaid
+	 * @param {Streams_Stream} $stream The stream need to check
+	 * @param {Users_User|String} [$user] User which need to check. If null use logged in user.
+	 * @param {Boolean} [$throwIfNotPaid] If true throw exception if stream under some subscription plan and didn't paid
+	 * @return {Boolean}
+	 * @throws Exception
+	 */
+	static function checkStreamPaid ($stream, $user, $throwIfNotPaid=false) {
+		if ($user) {
+			if (is_string($user)) {
+				$user = Users_User::fetch($user, true);
+			}
+		} else {
+			$user = Users::loggedInUser(true);
+		}
+
+		// admins have access
+		if (self::isAdmin($user->id)) {
+			return true;
+		}
+
+		$assetsPlans = self::checkStreamRelated($stream);
+		if (!(boolean)$assetsPlans) {
+			return true;
+		}
+
+		foreach ($assetsPlans as $assetsPlan) {
+			$subscriptionStream = self::getStream($assetsPlan, $user);
+			if (!$subscriptionStream) {
+				continue;
+			}
+
+			if (self::isCurrent($subscriptionStream)) {
+				return true;
+			}
+		}
+
+		if ($throwIfNotPaid) {
+			$text = Q_Text::get("Assets/content");
+			throw new Exception(Q::interpolate($text['errors']['SubscriptionStreamNotPaid'], array(
+				"subscriptionUrl" => '<a href="'.Q_Uri::url("Assets/subscription").'">here</a>'
+			)));
+		}
+
+		return false;
+	}
+	/**
+	 * Check if user is admin
+	 * @method isAdmin
+	 * @param {Users_User|String} [$user] User which need to check. If null use logged in user.
+	 * @return {Boolean}
+	 */
+	static function isAdmin ($userId = null) {
+		if (empty($userId)) {
+			$userId = Users::loggedInUser(true)->id;
+		} elseif (is_object($userId)) {
+			$userId = Q::ifset($userId, "id", null);
+		}
+
+		return (bool)Users::roles(null, Q_Config::get("Streams", "types", "Assets/plan", "canCreate", null), array(), $userId);
 	}
 };
