@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Used to get a stream
  *
