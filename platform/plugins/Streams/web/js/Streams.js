@@ -854,7 +854,12 @@ Q.Tool.define({
 	"Streams/task/preview": {
 		js: "{{Streams}}/js/tools/task/preview.js",
 		css: "{{Streams}}/css/tools/previewTask.css"
-	}
+	},
+	"Streams/metrics": {
+		js: "{{Streams}}/js/tools/metrics.js",
+		css: "{{Streams}}/css/tools/metrics.css"
+	},
+
 });
 
 Streams.Chat = {
@@ -1293,7 +1298,7 @@ Streams.Metrics = function (params) {
 			return;
 		}
 
-		// iterate all periods and try to fing the period which continue value is
+		// iterate all periods and try to find the period which continue value is
 		var sorted = false;
 		Q.each(that.predefined, function (i, period) {
 			if (sorted) {
