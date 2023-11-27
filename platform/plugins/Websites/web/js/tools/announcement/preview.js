@@ -124,7 +124,7 @@ Q.Template.set('Communities/announcement/preview/edit',
 	+ '<{{titleTag}} class="Streams_preview_title">{{{inplace}}}</{{titleTag}}>'
 	+ '{{#each announced}}'
 	  + '<div class="Streams_preview_announced">'
-	  + 'Posted {{&tool "Q/timestamp" time=@key}} to {{this.title}}'
+	  + 'Posted {{{tool "Q/timestamp" time=@key}} to {{this.title}}}'
 	  + '</div>'
 	+ '{{/each}}'
 	+ '</div></div>'
@@ -138,4 +138,4 @@ Q.Template.set('Communities/announcement/preview/create',
 	+ '</div></div>'
 );
 
-})(Q, Q.$, window);
+})(Q, Q.jQuery, window);

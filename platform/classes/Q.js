@@ -972,20 +972,19 @@ Q.chain = function (callbacks, callback) {
  * @method promisify
  * @static
  * @param  {Function} getter A function that takes arguments that include a callback and passes err as the first parameter to that callback, and the value as the second argument.
- * @param {Boolean} useThis whether to resolve the promise with the "this" instead of the second argument
- * @param {Number} callbackIndex Which argument the getter is expecting the callback, if any
+ * @param {Boolean} useThis whether to resolve the promise with the "this" instead of the second argument.
+ * @param {Number|Array} callbackIndex Which argument the getter is expecting the callback, if any.
  *  For cordova-style functions pass an array of indexes for the
  *  onSuccess, onFailure callbacks, respectively.
  * @return {Function} a wrapper around the function that returns a promise, extended with the original function's return value if it's an object
  */
- Q.promisify = function (getter, useThis, callbackIndex) {
+Q.promisify = function (getter, useThis, callbackIndex) {
 	function _promisifier() {
 		if (!Q.Promise) {
 			return getter.apply(this, args);
 		}
 		var args = [], resolve, reject, found = false;
-		for (var i=0, l=arguments.length; i<l; ++i) {
-			var ai = arguments[i];
+		Q.each(arguments, function (i, ai) {
 			if (typeof ai !== 'function') {
 				args.push(ai);
 			} else {
@@ -1002,7 +1001,7 @@ Q.chain = function (callbacks, callback) {
 					resolve(useThis ? this : second);
 				});
 			}
-		}
+		});
 		if (!found) {
 			if (callbackIndex instanceof Array) {
 				callbackIndex[0] && (args[callbackIndex[0]] = function _onResolve(value) {
@@ -1025,7 +1024,12 @@ Q.chain = function (callbacks, callback) {
 			resolve = r1;
 			reject = r2;
 		});
-		return Q.extend(promise, getter.apply(this, args));
+		try {
+			return Q.extend(promise, getter.apply(this, args));
+		} catch (e) {
+			reject(e);
+			return promise;
+		}
 	}
 	return Q.extend(_promisifier, getter);
 };
@@ -2046,14 +2050,19 @@ Q.mixin = function _Q_mixin(A, B) {
 
 /**
  * Copies a subset of the fields in an object
- * @method take
  * @static
- * @param {Object} source An Object from which to take things
- * @param {Array|Object} An array of fields to take or an object of fieldname: default pairs
- * @return {Object} a new Object
+ * @method take
+ * @param {Object} source
+ *  An Object from which to take things
+ * @param  {Array|Object} fields
+ *  An array of fields to take
+ *  Or an Object of fieldname: default pairs
+ * @param {Object} [result]
+ *  Optionally pass an object here as a destination
+ * @return {Object}
  */
-Q.take = function _Q_take(source, fields) {
-	var result = {};
+Q.take = function _Q_take(source, fields, result) {
+	result = result || {};
 	if (!source) return result;
 	if (Q.isArrayLike(fields)) {
 		for (var i = 0; i < fields.length; ++i) {

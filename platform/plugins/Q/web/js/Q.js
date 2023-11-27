@@ -10,7 +10,7 @@
 (function _Q_setup(undefined, dontSetGlobals) {
 
 var root = this;
-var $ = Q.$ = root.jQuery;
+var $ = Q.jQuery = root.jQuery;
 
 // private properties
 var _isReady = false;
@@ -1966,10 +1966,12 @@ Q.has = function _Q_has(obj, key) {
  * @param  {Array|Object} fields
  *  An array of fields to take
  *  Or an Object of fieldname: default pairs
+ * @param {Object} [result]
+ *  Optionally pass an object here as a destination
  * @return {Object}
  */
-Q.take = function _Q_take(source, fields) {
-	var result = {};
+Q.take = function _Q_take(source, fields, result) {
+	result = result || {};
 	if (!source) return result;
 	if (Q.isArrayLike(fields)) {
 		for (var i = 0; i < fields.length; ++i) {
@@ -2330,8 +2332,8 @@ Q.chain = function (callbacks, callback) {
  * @method promisify
  * @static
  * @param  {Function} getter A function that takes arguments that include a callback and passes err as the first parameter to that callback, and the value as the second argument.
- * @param {Boolean} useThis whether to resolve the promise with the "this" instead of the second argument
- * @param {Number} callbackIndex Which argument the getter is expecting the callback, if any
+ * @param {Boolean} useThis whether to resolve the promise with the "this" instead of the second argument.
+ * @param {Number|Array} callbackIndex Which argument the getter is expecting the callback, if any.
  *  For cordova-style functions pass an array of indexes for the
  *  onSuccess, onFailure callbacks, respectively.
  * @return {Function} a wrapper around the function that returns a promise, extended with the original function's return value if it's an object
@@ -2382,7 +2384,12 @@ Q.promisify = function (getter, useThis, callbackIndex) {
 			resolve = r1;
 			reject = r2;
 		});
-		return Q.extend(promise, getter.apply(this, args));
+		try {
+			return Q.extend(promise, getter.apply(this, args));
+		} catch (e) {
+			reject(e);
+			return promise;
+		}
 	}
 	return Q.extend(_promisifier, getter);
 };
@@ -2657,7 +2664,7 @@ Q.swapElements = function(element1, element2) {
  */
 Q.$ = function (selector, element, toArray) {
 	var list = (element || document).querySelectorAll(selector);
-	return toArray ? Array.prototype.slice.call(list) : list.entries();
+	return toArray ? Array.prototype.slice.call(list) : list.values();
 };
 
 /**
@@ -5568,14 +5575,20 @@ Tp.prepareHTML = Tp.setUpElementHTML = function (element, toolName, toolOptions,
  *   the root element of the desired tool
  * @param {String} [toolName]
  *   optional name of the tool attached to the element
+ * @param {Boolean} [useClosest]
+ *   pass true to check the closest parent of the element with that tooL
  * @return {Q.Tool|null}
  *   the tool corresponding to the given element, otherwise null
  */
-Q.Tool.from = function _Q_Tool_from(toolElement, toolName) {
+Q.Tool.from = function _Q_Tool_from(toolElement, toolName, useClosest) {
 	if (Q.isArrayLike(toolElement)) {
 		toolElement = toolElement[0];
 	} if (typeof toolElement === 'string') {
 		toolElement = document.getElementById(toolElement);
+	}
+	if (useClosest) {
+		var className = toolName.split('/').join('_')+'_tool';
+		toolElement = toolElement.closest('.'+className);
 	}
 	return toolElement && toolElement.Q ? toolElement.Q(toolName) : null;
 };
@@ -6919,66 +6932,76 @@ Q.Cache.session.caches = {};
  * @constructor
  * @param {String} uriString
  */
-Q.IndexedDB = {
-	/**
-	 * Creates or uses an existing database and object store name.
-	 * @static
-	 * @method open
-	 * @param {String} dbName The name of the database
-	 * @param {String} storeName The name of the object store name inside the database
-	 * @param {String} keyPath The key path inside the object store
-	 * @param {Function} callback Receives (error, ObjectStore)
-	 * @param {Number} [version=1] The version of the database to open
-	 * @return {Q.Promise}
-	 */
-	open: function (dbName, storeName, keyPath, callback, version) {
-		if (!root.indexedDB) {
-			return false;
-		}
-		var open = indexedDB.open(dbName, version || 1);
-		open.onupgradeneeded = function() {
-			var db = open.result;
-			db.createObjectStore(storeName, {keyPath: keyPath});
-		};
-		open.onerror = function (error) {
-			callback && callback(error);
-		};
-		open.onsuccess = function() {
-			// Start a new transaction
-			var db = open.result;
-			var tx = db.transaction(storeName, "readwrite");
-			var store = tx.objectStore(storeName);
-			callback && callback(null, store);
-			// Close the db when the transaction is done
-			tx.oncomplete = function() {
-				db.close();
-			};
-		}
-	},
-	put: function (store, value, onSuccess, onError) {
-		if (!onError) {
-			onError = function () {
-				throw new Q.Error("Q.IndexedDB.put error:" + request.errorCode);
-			}
-		}
-		var request = store.put(value);
-		request.onsuccess = onSuccess;
-		request.onError = onError;
-	},
-	get: function (store, key, onSuccess, onError) {
-		if (!onError) {
-			onError = function () {
-				throw new Q.Error("Q.IndexedDB.get error:" + request.errorCode);
-			}
-		}
-		var request = store.get(key);
-		request.onsuccess = function (event) {
-			Q.handle(onSuccess, Q.IndexedDB, [event.target.result, event]);
-		};
-		request.onError = onError;
+Q.IndexedDB = {};
+
+/**
+ * Creates or uses an existing database and object store name.
+ * @static
+ * @method open
+ * @param {String} dbName The name of the database
+ * @param {String} storeName The name of the object store name inside the database
+ * @param {String} keyPath The key path inside the object store
+ * @param {Function} callback Receives (error, ObjectStore)
+ * @return {Q.Promise}
+ */
+Q.IndexedDB.open = Q.promisify(function (dbName, storeName, keyPath, callback) {
+	if (!root.indexedDB) {
+		return false;
 	}
+	var lskey = 'Q_IndexedDB_version';
+	var version = localStorage.getItem(lskey) || 1;
+	var open = indexedDB.open(dbName, version);
+	var _triedAddingObjectStore = false;
+	open.onupgradeneeded = function() {
+		var db = this.result;
+		if (!db.objectStoreNames.contains(storeName)
+		&& !_triedAddingObjectStore) {
+			_triedAddingObjectStore = true;
+			db.createObjectStore(storeName, {keyPath: keyPath});
+		}
+	};
+	open.onerror = function (error) {
+		callback && callback.call(Q.IndexedDB, error);
+	};
+	open.onsuccess = function() {
+		var db = this.result;
+		if (!db.objectStoreNames.contains(storeName)) {
+			// need to upgrade version and add this store
+			++version;
+			localStorage.setItem(lskey, version);
+			db.close();
+			var o = indexedDB.open(dbName, version);
+			Q.take(open, ['onupgradeneeded', 'onerror', 'onsuccess'], o);
+			return;
+		}
+		// Start a new transaction
+		var tx = db.transaction(storeName, "readwrite");
+		var store = tx.objectStore(storeName);
+		callback && callback.call(Q.IndexedDB, null, store);
+		// Close the db when the transaction is done
+		tx.oncomplete = function() {
+			db.close();
+		};
+	};
+});
+Q.IndexedDB.put = Q.promisify(function (store, value, callback) {
+	_DB_addEvents(store, store.put(value), callback);
+});
+Q.IndexedDB.get = Q.promisify(function (store, key, callback) {
+	_DB_addEvents(store, store.get(key), callback);
+});
+Q.IndexedDB['delete'] = Q.promisify(function (store, key, callback) {
+	_DB_addEvents(store, store.delete(key), callback);
+});
+
+function _DB_addEvents(store, request, callback) {
+	request.onsuccess = function (event) {
+		callback && callback.call(store, null, event.target.result);
+	};
+	request.onerror = function (errorEvent) {
+		callback && callback.call(store, errorEvent);
+	};
 };
-Q.IndexedDB.open = Q.promisify(Q.IndexedDB.open);
 
 /**
  * A constructor to create Q.Page objects
@@ -11781,8 +11804,15 @@ function _connectSocketNS(ns, url, callback, earlyCallback, forceNew) {
 		}
 
 		// if (!qs.socket.io.connected && Q.isEmpty(qs.socket.io.connecting)) {
-		earlyCallback && earlyCallback(_qsockets[ns][url], ns, url);
-		callback && Q.Socket.onConnect(ns, url).addOnce(callback);
+		Q.handle(earlyCallback, this, [_qsockets[ns][url], ns, url]);
+		var socket = Q.Socket.get(ns, url);
+		if (callback) {
+			if (socket && socket.connected) {
+				callback.call(qs, ns, url);
+			} else {
+				Q.Socket.onConnect(ns, url).setOnce(callback);
+			}
+		}
 		
 		function _Q_Socket_register(qs) {
 			Q.each(_socketRegister, function (i, item) {
@@ -12796,8 +12826,45 @@ function _Q_Pointer_start_end_handler (e) {
  */
 Q.Visual = Q.Pointer = {
 
-	awaitNaturalImageSize: function (img, callback) {
+	/**
+	 * Computes the intersection of two rectangles, if any.
+	 * Note that edge intersection may have 0 width or height.
+	 * @method intersection
+	 * @static
+	 * @param {Element|DOMRect} first 
+	 * @param {Element|DOMRect} second 
+	 * @return {DOMRect|null} The rectangle, or null if no intersection
+	 */
+	intersection: function (first, second) {
+		(first instanceof Element) && (first = first.getBoundingClientRect());
+		(second instanceof Element) && (second = second.getBoundingClientRect());
+		if (first.left > second.right || second.left > first.right
+		|| first.top > second.bottom || second.top > first.bottom) {
+			return null;
+		}
+		var x = Math.max(first.left, second.left);
+		var y = Math.max(first.top, second.top);
+		return new DOMRect(
+			x, y, 
+			Math.min(first.right, second.right) - x,
+			Math.max(first.bottom, second.bottom) - y
+		);
+	},
+
+	/**
+	 * @method awaitNaturalImageSize
+	 * @static
+	 * @param {Element} img 
+	 * @param {Function} callback 
+	 * @param {Object} options 
+	 * @param {boolean} ignoreLazyload
+	 */
+	awaitNaturalImageSize: function (img, callback, options) {
 		var wait = setInterval(function() {
+			if (img.getAttribute('data-lazyload-src')
+			&& !(options && options.ignoreLazyload)) {
+				return; // the lazyloaded image isn't loaded yet
+			}
 			var w = img.naturalWidth;
 			var h = img.naturalHeight;
 			if (w && h) {
@@ -15517,7 +15584,7 @@ Q.Tool.jQuery({
 
 Q.onJQuery.add(function ($) {
 	
-	Q.$ = $;
+	Q.jQuery = $;
 	
 	Q.onLoad.add(function () {
 		// Start loading some plugins asynchronously after document loads.
@@ -16389,7 +16456,7 @@ Q.Notices = {
 	process: function () {
 		var noticeElement = document.getElementById("notices_slot");
 		if (!(noticeElement instanceof HTMLElement)) {
-			return console.warn("Q.Notices.process: element with id=notices_slot not found");
+			return false;
 		}
 
 		var noticeElements = noticeElement.getElementsByTagName("li");
@@ -16413,6 +16480,7 @@ Q.Notices = {
 			this.remove(); // need to remove before adding because can be keys conflict
 			Q.Notices.add(options);
 		});
+		return true;
 	}
 };
 

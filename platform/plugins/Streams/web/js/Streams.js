@@ -856,7 +856,7 @@ Q.Tool.define({
 		css: "{{Streams}}/css/tools/previewTask.css"
 	},
 	"Streams/metrics": {
-		js: "{{Streams}}/js/tools/metrics.js",
+		js: ["{{Q}}/js/jquery.canvasjs.min.js", "{{Streams}}/js/tools/metrics/tool.js"],
 		css: "{{Streams}}/css/tools/metrics.css"
 	},
 

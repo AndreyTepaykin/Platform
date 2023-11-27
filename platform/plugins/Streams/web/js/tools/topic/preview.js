@@ -97,19 +97,17 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
 
             if (stream.testWriteLevel('edit')) {
                 previewState.actions.actions = previewState.actions.actions || {};
-                if (!previewState.actions.actions.edit) {
-                    previewState.actions.actions.edit = function () {
-                        tool.update(function () {
-                            stream.refresh(function () {
+                previewState.actions.actions.edit = function () {
+                    tool.update(function () {
+                        stream.refresh(function () {
 
-                            }, {
-                                changed: {icon: true},
-                                messages: true,
-                                evenIfNotRetained: true
-                            });
+                        }, {
+                            changed: {icon: true},
+                            messages: true,
+                            evenIfNotRetained: true
                         });
-                    };
-                }
+                    });
+                };
             }
         });
     },
@@ -191,6 +189,9 @@ Q.Tool.define("Streams/topic/preview", ["Streams/preview"], function(options, pr
                             "": "400.png"
                         }
                     });
+                    $(".Streams_topic_composer_form_group[data-type=icon] label", $dialog).on(Q.Pointer.fastclick, function () {
+                        $icon.click();
+                    });
                 });
 
                 // create topic
@@ -253,4 +254,4 @@ Q.Template.set('Streams/topic/composer',
         <button class="Q_button" name="save" type="button">{{saveButtonText}}</button>
     </form>`, {text: ['Streams/content']});
 
-})(Q, Q.$, window);
+})(Q, Q.jQuery, window);

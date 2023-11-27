@@ -92,6 +92,7 @@
 			confirmTerms: "Accept the Terms of Service?",
 			picTooltip: "You can change this picture later",
 			web3: {
+				ConnectWallet: "Connect Wallet",
 				alt: "log in with wallet",
 				payload: "Log into {{host}} at time {{timestamp}}",
 				alert: {
@@ -1951,32 +1952,33 @@
 					</ul>`);
 					var handOffTimeout;
 					Q.Dialogs.push({
-						title: "Connect wallet",
+						title: Q.text.Users.login.web3.ConnectWallet,
 						className: "Users_connect_wallets",
 						content: "",
 						stylesheet: '{{Users}}/css/Users/wallets.css',
 						onActivate: function ($dialog) {
-							var url = new URL(location);
-							url = url.protocol + "//" + url.host + url.pathname;
-							var urlParams = {
-								baseUrl: url,
-								domain: url.replace(/.+:\/\//, ''),
-								baseUrlEncoded: encodeURIComponent(url)
-							};
-
 							Q.req("Users/session", ["payload"], function (err, response) {
 								if (err) {
 									return;
 								}
 
 								var payload = response.slots.payload.payload;
+								var querystring = new URLSearchParams(Q.extend({}, payload, {
+									'Q.Users.environment': i
+								})).toString();
+								var u = new URL(location);
+								var url = u.protocol + "//" + u.host + u.pathname + '?' + querystring;
+								var urlParams = {
+									url: url,
+									urlEncoded: encodeURIComponent(url),
+									urlWithoutScheme: url.replace(/.+:\/\//, '')
+								};
 								var cWallets = Q.extend({}, wallets);
 
 								Q.each(cWallets, function (i, val) {
 									cWallets[i]["img"] = Q.url("{{Users}}/img/web3/wallet/"+i+".png");
 									if (val.url) {
-										var href = val.url.interpolate(urlParams);
-										cWallets[i]["url"] = href + '?' + new URLSearchParams(Q.extend({}, payload, {'Q.Users.environment': i})).toString();
+										cWallets[i]["url"] = val.url.interpolate(urlParams);
 									} else {
 										cWallets[i]["data-url"] = i;
 									}
@@ -2007,7 +2009,7 @@
 								}, 'Users_connect_wallets');
 
 								// close dialog on timeout
-								handOffTimeout = setTimeout(() => {
+								handOffTimeout = setTimeout(function () {
 									Q.Dialogs.close($dialog);
 								}, payload['Q.timestamp']*1000 - Date.now());
 							}, {
@@ -2572,7 +2574,7 @@
 					); // parsed
 					if (customErrorDescription) {
 						var decodedStr = ethers.utils.defaultAbiCoder.decode(
-							customErrorDescription.inputs.map(obj => obj.type),
+							customErrorDescription.inputs.map(function (obj) { return obj.type }),
 							ethers.utils.hexDataSlice(err.data.data, 4)
 						);
 						str = customErrorDescription.name +'('

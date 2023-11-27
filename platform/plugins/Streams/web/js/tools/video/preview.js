@@ -374,7 +374,7 @@
 					},
 					fullscreen: Q.info.isMobile,
 					destroyOnClose: true,
-					trigger: Q.info.isMobile ? tool.element : null,
+					trigger: null,
 					onActivate: function () {
 						// if opened in columns - third argument is a column element,
 						// if opened dialog - first argument is dialog element
@@ -670,4 +670,4 @@
 		{text: ['Streams/content']}
 	);
 
-})(Q, Q.$, window);
+})(Q, Q.jQuery, window);
