@@ -421,15 +421,15 @@ Sp.asc2hex = function() {
  * @return {number}
  */
 Sp.hashCode = function() {
-	var hash = 0;
+	var hash = 5381;
 	if (!this.length) return hash;
 	for (var i = 0; i < this.length; i++) {
 		var c = this.charCodeAt(i);
 		hash = hash % 16777216;
-		hash = ((hash<<5)-hash)+c;
+		hash = ((hash<<5)-hash)*c+c;
 		hash = hash & 0xffffffff; // Convert to 32bit integer
 	}
-	return hash;
+	return Math.abs(hash);
 };
 
 /**
@@ -1178,14 +1178,16 @@ Elp.forEachTool = function _Q_Tool_prototype_forEachTool(name, callback, key) {
 };
 
 /**
- * Check if element instance od HTML.Element and exists in DOM.
- * @method exists
- * @chainable
+ * Return element if it's in the DOM, otherwise return
+ * the element of the DOM with the same ID as this element
+ * @method elementById
  * @param {Element} element
- * @return {Boolean}
+ * @return {Element|null}
  */
-Q.elementIsInDOM = function (element) {
-	return (element instanceof Element) && element.offsetParent;
+Q.elementById = function (element) {
+	return element.isConnected 
+		? element 
+		: (element.id ? document.getElementById(element.id) : null);
 };
 
 if (!Elp.getElementsByClassName) {
@@ -4101,7 +4103,7 @@ Q.batcher.factory = function _Q_batcher_factory(collection, baseUrl, tail, slotN
  * @return {Function}
  *  The wrapper function, which returns a Q.Promise with a property called "result"
  *  which could be one of Q.getter.CACHED, Q.getter.REQUESTING, Q.getter.WAITING or Q.getter.THROTTLING .
- *  The promise resolves with the "this" object returned in the getter, or rejects on any errors.
+ *  After calling callbacks, the promise resolves with the "this" object returned in the getter, or rejects on any errors.
  *  This wrapper function also contains Q.Events called onCalled, onResult and onExecuted.
  */
 Q.getter = function _Q_getter(original, options) {
@@ -4682,17 +4684,22 @@ Q.Tool.remove = function _Q_Tool_remove(elem, removeCached, removeElementAfterLa
  * @method clear
  * @param {HTMLElement} elem 
  *  The container to traverse
- * @param {boolean} removeCached 
- *  Defaults to false. Whether the tools whose containing elements
- *  have the "data-Q-retain" attribute should be removed...
+ * @param {boolean} removeCached
+ *  Defaults to false. Whether the tools whose containing elements have the "data-Q-retain" attribute
+ *  should be removed.
+ * @param {boolean} [removeElementAfterLastTool=false]
+ *  If true, removes the element if the last tool on it was removed
+ * @param {String|Function} [filter]
+ *  This is a string that would match the tool name exactly (after normalization) to remove it,
+ *  or a function that will take a tool name and return a boolean, false means don't remove tool.
  */
-Q.Tool.clear = function _Q_Tool_clear(elem, removeCached) {
+Q.Tool.clear = function _Q_Tool_clear(elem, removeCached, removeElementAfterLastTool, filter) {
 	if (typeof elem === 'string') {
 		var tool = Q.Tool.byId(elem);
 		if (!tool) return false;
 		elem = tool.element;
 	}
-	Q.Tool.remove(elem.children || elem.childNodes);
+	Q.Tool.remove(elem.children || elem.childNodes, removeCached, removeElementAfterLastTool, filter);
 };
 
 /**
@@ -5471,7 +5478,6 @@ Q.Tool.prepare = Q.Tool.setUpElement = function _Q_Tool_prepare(element, toolNam
 				} while (Q.Tool.active[p2]);
 				id = p2 + 'tool';
 			} else {
-				id += '_tool';
 				if (p1) {
 					id = p1 + id;
 				}
@@ -7680,6 +7686,7 @@ Q.replace = function _Q_replace(container, source, options) {
 		var element = id && document.getElementById(id);
 		if (element && element.getAttribute('data-Q-retain') !== null
 		&& !incomingElement.getAttribute('data-Q-replace') !== null
+		&& element.Q && element.Q.tool
 		&& replaceElements.indexOf(element) < 0) {
 			// If a tool exists with this exact id and has "data-Q-retain",
 			// then re-use it and all its HTML elements, unless
@@ -7687,6 +7694,12 @@ Q.replace = function _Q_replace(container, source, options) {
 			// This way tools can avoid doing expensive operations each time
 			// they are replaced and reactivated.
 			incomingElements[incomingElement.id] = incomingElement;
+			Q.replace.retainedElements[incomingElement.id] = element;
+			setTimeout(function () {
+				// give a chance for Q/lazyload tool to remove them,
+				// otherwise remove them automatically
+				delete Q.replace.retainedElements[incomingElement.id];
+			}, 1000);
 			incomingElement.parentElement.replaceChild(element, incomingElement);
 			for (var name in element.Q.tools) {
 				var tool = Q.Tool.from(element, name);
@@ -7727,6 +7740,8 @@ Q.replace = function _Q_replace(container, source, options) {
 	
 	return container;
 };
+
+Q.replace.retainedElements = {};
 
 /**
  * A class for detecting user browser parameters.
@@ -7973,6 +7988,17 @@ Q.Browser = {
 
 	getScrollbarHeight: function() {
 		return this.getScrollbarWidth();
+	},
+
+	getDarkMode: function (callback) {
+		if (!window.matchMedia) {
+			return null;
+		}
+		var mm = window.matchMedia('(prefers-color-scheme: dark)');
+		if (callback) {
+			mm.addEventListener('change', callback);
+		}
+		return mm.matches;
 	}
 	
 };
@@ -8464,6 +8490,24 @@ Q.interpolateUrl = function (url, additional) {
 		url = url.interpolate(additional);
 	}
 	return url;
+};
+
+/**
+ * Interpolates between values e.g. color components of RGB, HSL, etc.
+ * @method interpolateArray
+ * @static
+ * @param {Array} start array of starting values in a range
+ * @param {Array} end array of ending values in a range
+ * @param {Number} fraction distance between 0 (start) and 1 (end)
+ * @returns {Array} interpolated values
+ */
+Q.interpolateArray = function (start, end, fraction) {
+	fraction = parseFloat(fraction) || 0.5;
+	var result = [];
+	for (var i=0; i<start.length; ++i) {
+		result.push(start[i] + fraction * (end[i] - start[i]));
+	}
+	return result;
 };
 
 /**
@@ -12255,24 +12299,23 @@ function _listenForVisibilityChange() {
 		}
 	});
 	Q.addEventListener(document, visibilityChange, function () {
-		Q.onVisibilityChange.handle.call(document, [!document[hidden]]);
+		Q.onVisibilityChange.handle.call(document, !Q.isDocumentHidden());
 	}, false);
-	Q.isDocumentHidden = function () {
-		return document[hidden];
-	};
 }
 _listenForVisibilityChange();
 
-function _handleVisibilityChange() {
-	if (document.hidden || document.msHidden 
-	|| document.webkitHidden || document.oHidden) {
-		return;
-	}
-	for (var k in Q.Animation.playing) {
-		Q.Animation.playing[k].play();
+function _handleVisibilityChange(shown) {
+	if (shown) {
+		for (var k in Q.Animation.playing) {
+			Q.Animation.playing[k].play();
+		}
 	}
 }
 Q.onVisibilityChange.set(_handleVisibilityChange, 'Q.Animation');
+Q.isDocumentHidden = function () {
+	return document.hidden || document.msHidden 
+		|| document.webkitHidden || document.oHidden;
+};
 
 Q.Animation.playing = {};
 var _Q_Animation_index = 0;
@@ -13533,7 +13576,7 @@ Q.Visual = Q.Pointer = {
                     if (Q.isArrayLike(targets)) {
                         img1.target = targets[0];
                         for (i=1, l=targets.length; i<l; ++i) {
-                            if (!Q.elementIsInDOM(targets[i])) {
+                            if (targets[i] && targets[i].isConnected) {
                                 continue;
                             }
                             var img2 = img1.cloneNode(false);
@@ -13547,7 +13590,7 @@ Q.Visual = Q.Pointer = {
                         }
                     } else {
                         img1.target = targets;
-                        if (!Q.elementIsInDOM(targets)) {
+                        if (targets && targets.isConnected) {
                             img1.remove();
                         }
                     }
@@ -14531,6 +14574,7 @@ Q.Dialogs.push.options = {
  * @param {Object} [options] An optional hash of options for Q.Dialogs.push and also:
  *   @param {String} [options.title="Alert"] Optional parameter to override alert dialog title. Defaults to 'Alert'.
  *   @param {Q.Event} [options.onClose] Optional, occurs when dialog is closed
+* @return {HTMLElement} The HTML element of the dialog that was just pushed.
  */
 Q.alert = function(message, options) {
 	if (options === undefined) options = {};
@@ -14570,6 +14614,7 @@ Q.extend(Q.alert.options, Q.text.Q.alert);
  * @param {String} [options.cancel='No'] to override confirm dialog 'No' button label, e.g. 'Cancel'.
  * @param {boolean} [options.noClose=true] set to false to show a close button
  * @param {Q.Event} [options.onClose] Optional, occurs when dialog is closed
+* @return {HTMLElement} The HTML element of the dialog that was just pushed.
  */
 Q.confirm = function(message, callback, options) {
 	var o = Q.extend({}, Q.confirm.options, options);
@@ -14640,6 +14685,7 @@ Q.extend(Q.confirm.options, Q.text.confirm);
  * @param {String} [options.ok='OK'] to override prompt dialog 'Ok' button label, e.g. 'Post'.
  * @param {boolean} [options.noClose=true] set to false to show a close button
  * @param {Q.Event} [options.onClose] Optional, occurs when dialog is closed
+ * @return {HTMLElement} The HTML element of the dialog that was just pushed.
  */
 Q.prompt = function(message, callback, options) {
 	function _done() {
@@ -16145,91 +16191,6 @@ Q.Camera = {
 				}
 			}
 		}
-	}
-};
-
-/**
- * Operates with colors.
- * @class Q.Colors
- */
- Q.Color = {
-	/**
-	 * Get a color somewhere between startColor and endColor
-	 * @method toHex
-	 * @static
-	 * @param {String|Number} startColor 
-	 * @param {String|Number} endColor 
-	 * @param {String|Number} fraction 
-	 * @returns {String} a color as a hex string without '#' in front
-	 */
-	toHex: function (r, g, b) {
-		return [r, g, b].map(x => {
-			const hex = Math.round(x).toString(16)
-			return hex.length === 1 ? '0' + hex : hex
-		  }).join('');
-	},
-	/**
-	 * Get a color somewhere between startColor and endColor
-	 * @method between
-	 * @static
-	 * @param {String|Number} startColor 
-	 * @param {String|Number} endColor 
-	 * @param {String|Number} fraction 
-	 * @returns {String} a color as a hex string without '#' in front
-	 */
-	between: function(startColor, endColor, fraction) {
-		if (typeof startColor === 'string') {
-			startColor = parseInt(startColor.replace('#', '0x'), 16);
-		}
-		if (typeof endColor === 'string') {
-			endColor = parseInt(endColor.replace('#', '0x'), 16);
-		}
-		var startRed = (startColor >> 16) & 0xFF;
-		var startGreen = (startColor >> 8) & 0xFF;
-		var startBlue = startColor & 0xFF;
-		var endRed = (endColor >> 16) & 0xFF;
-		var endGreen = (endColor >> 8) & 0xFF;
-		var endBlue = endColor & 0xFF;
-		var newRed = startRed + fraction * (endRed - startRed);
-		var newGreen = startGreen + fraction * (endGreen - startGreen);
-		var newBlue = startBlue + fraction * (endBlue - startBlue);
-		return Q.Color.toHex(newRed, newGreen, newBlue);
-	},
-	/**
-	 * Sets a new theme-color on the window
-	 * @method setWindowTheme
-	 * @static
-	 * @param {String} color in any CSS format, such as "#aabbcc"
-	 * @return {String} the previous color
-	 */
-	setWindowTheme: function (color) {
-		if (Q.Color.setWindowTheme.ignore) {
-			return color;
-		}
-		var meta = document.querySelector('meta[name="theme-color"]');
-		var prevColor = null;
-		if (meta) {
-			prevColor = meta.getAttribute('content');
-		}
-		if (color) {
-			if (!meta) {
-				meta = document.createElement('meta');
-				meta.setAttribute('name', 'theme-color');
-			}
-			meta.setAttribute('content', color);
-		}
-		return prevColor;
-	},
-	/**
-	 * Gets the current window theme color
-	 * @method getWindowTheme
-	 * @static
-	 * @param {String} color in any CSS format, such as "#aabbcc"
-	 * @return {String|null} the previous color, or null if it's missing
-	 */
-	getWindowTheme: function () {
-		var meta = document.querySelector('meta[name="theme-color"]');
-		return meta ? meta.getAttribute('content') : null;
 	}
 };
 

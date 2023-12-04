@@ -1,11 +1,20 @@
 /**
- * A class to parse color values
- * @author Stoyan Stefanov <sstoo@gmail.com>
- * @link   http://www.phpied.com/rgb-color-parser-in-javascript/
- * @license Use it if you like it
+ * @module Q
  */
-Q.Color = function _Q_Color(color_string)
-{
+/**
+ * @class Q.Color
+ * Operates with colors.
+ * Also see http://www.phpied.com/rgb-color-parser-in-javascript/
+ */
+Q.Color = function _Q_Color(input) {
+    if (input instanceof Array) {
+        this.r = input[0];
+        this.g = input[1];
+        this.b = input[2];
+        return;
+    }
+    
+    let color_string = input;
     this.ok = false;
 
     // strip any leading #
@@ -226,62 +235,106 @@ Q.Color = function _Q_Color(color_string)
     this.r = (this.r < 0 || isNaN(this.r)) ? 0 : ((this.r > 255) ? 255 : this.r);
     this.g = (this.g < 0 || isNaN(this.g)) ? 0 : ((this.g > 255) ? 255 : this.g);
     this.b = (this.b < 0 || isNaN(this.b)) ? 0 : ((this.b > 255) ? 255 : this.b);
+};
 
-    // some getters
-    this.toRGB = function () {
-        return 'rgb(' + this.r + ', ' + this.g + ', ' + this.b + ')';
+// some getters
+Q.Color.prototype.toRGB = function () {
+    return 'rgb(' + this.r + ', ' + this.g + ', ' + this.b + ')';
+};
+
+Q.Color.prototype.toHex = function () {
+    return Q.Color.toHex(this.r, this.g, this.b);
+};
+
+/**
+ * Get a color somewhere between startColor and endColor
+ * @method toHex
+ * @static
+ * @param {String|Number} startColor 
+ * @param {String|Number} endColor 
+ * @param {String|Number} fraction 
+ * @returns {String} a color as a hex string without '#' in front
+ */
+Q.Color.toHex = function (r, g, b) {
+    return [r, g, b].map(x => {
+        const hex = Math.round(x).toString(16)
+        return hex.length === 1 ? '0' + hex : hex
+    }).join('');
+};
+/**
+ * Get a color somewhere between startColor and endColor
+ * @method between
+ * @static
+ * @param {String|Number} startColor 
+ * @param {String|Number} endColor 
+ * @param {String|Number} fraction 
+ * @returns {String} a color as a hex string without '#' in front
+ */
+Q.Color.between = function(startColor, endColor, fraction) {
+    if (typeof startColor === 'string') {
+        startColor = parseInt(startColor.replace('#', '0x'), 16);
     }
-    this.toHex = function () {
-        var r = this.r.toString(16);
-        var g = this.g.toString(16);
-        var b = this.b.toString(16);
-        if (r.length == 1) r = '0' + r;
-        if (g.length == 1) g = '0' + g;
-        if (b.length == 1) b = '0' + b;
-        return '#' + r + g + b;
+    if (typeof endColor === 'string') {
+        endColor = parseInt(endColor.replace('#', '0x'), 16);
     }
-
-    // help
-    this.getHelpXML = function () {
-
-        var examples = new Array();
-        // add regexps
-        for (var i = 0; i < color_defs.length; i++) {
-            var example = color_defs[i].example;
-            for (var j = 0; j < example.length; j++) {
-                examples[examples.length] = example[j];
-            }
-        }
-        // add type-in colors
-        for (var sc in simple_colors) {
-            examples[examples.length] = sc;
-        }
-
-        var xml = document.createElement('ul');
-        xml.setAttribute('id', 'rgbcolor-examples');
-        for (var i = 0; i < examples.length; i++) {
-            try {
-                var list_item = document.createElement('li');
-                var list_color = new RGBColor(examples[i]);
-                var example_div = document.createElement('div');
-                example_div.style.cssText =
-                        'margin: 3px; '
-                        + 'border: 1px solid black; '
-                        + 'background:' + list_color.toHex() + '; '
-                        + 'color:' + list_color.toHex()
-                ;
-                example_div.appendChild(document.createTextNode('test'));
-                var list_item_value = document.createTextNode(
-                    ' ' + examples[i] + ' -> ' + list_color.toRGB() + ' -> ' + list_color.toHex()
-                );
-                list_item.appendChild(example_div);
-                list_item.appendChild(list_item_value);
-                xml.appendChild(list_item);
-
-            } catch(e){}
-        }
-        return xml;
-
+    var startRed = (startColor >> 16) & 0xFF;
+    var startGreen = (startColor >> 8) & 0xFF;
+    var startBlue = startColor & 0xFF;
+    var endRed = (endColor >> 16) & 0xFF;
+    var endGreen = (endColor >> 8) & 0xFF;
+    var endBlue = endColor & 0xFF;
+    return Q.Color.toHex.apply(this, Q.interpolateArray(
+        [startRed, startGreen, startBlue],
+        [endRed, endGreen, endBlue],
+        fraction
+    ));
+};
+/**
+ * Sets a new theme-color on the window
+ * @method setWindowTheme
+ * @static
+ * @param {String} color in any CSS format, such as "#aabbcc"
+ * @return {String} the previous color
+ */
+Q.Color.setWindowTheme = function (color) {
+    if (Q.Color.setWindowTheme.ignore) {
+        return color;
     }
-
-}
+    var meta = document.querySelector('meta[name="theme-color"]');
+    var prevColor = null;
+    if (meta) {
+        prevColor = meta.getAttribute('content');
+    }
+    if (color) {
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('name', 'theme-color');
+        }
+        meta.setAttribute('content', color);
+    }
+    return prevColor;
+};
+/**
+ * Gets the current window theme color
+ * @method getWindowTheme
+ * @static
+ * @param {String} color in any CSS format, such as "#aabbcc"
+ * @return {String|null} the previous color, or null if it's missing
+ */
+Q.Color.getWindowTheme = function () {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    return meta ? meta.getAttribute('content') : null;
+};
+/**
+ * Generates 3 stable color components from a seed string
+ * @method Q.Color.fromSeed
+ * @static
+ * @param {String} seed some seed to generate a color
+ * @param {Object} options constraints
+ */
+Q.Color.fromSeed = function (seed) {
+    var r = (seed || '').toString().hashCode();
+    var g = r.toString().hashCode();
+    var b = g.toString().hashCode();
+    return [r % 256, g % 256, b % 256];
+};
