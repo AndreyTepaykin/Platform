@@ -2313,18 +2313,22 @@ Q.calculateKey.keys = [];
  * @param {Function} [callback] The final callback, if any, to call after the chain is done
  * @return {Function} The wrapper function
  */
-Q.chain = function (callbacks, callback) {
-	var result = callback;
+Q.chain = function (callbacks) {
+	var result = (callbacks && callbacks.pop()) || function () {
+		var args = Array.prototype.slice.call(arguments);
+		var cb = args.pop();
+		if (typeof cb === 'function') {
+			cb.apply(this, arguments);
+		}
+	};
 	Q.each(callbacks, function (i, cb) {
 		if (Q.typeOf(cb) !== 'function') {
 			return;
 		}
-
 		var prevResult = result;
 		result = function () {
-			var args = Array.prototype.slice.call(arguments, 0);
 			args.push(prevResult);
-			return cb.apply(this, args);
+			return cb.apply(this, arguments);
 		};
 	}, {ascending: false, numeric: true});
 	return result;
@@ -4134,7 +4138,9 @@ Q.batcher.factory = function _Q_batcher_factory(collection, baseUrl, tail, slotN
  *  is supposed to execute the batched request without waiting any more.
  *  If the original function returns false, the caching is canceled for that call.
  * @param {Object} [options={}] An optional hash of possible options, which include:
- * @param {Function} [options.prepare] This is a function that is run to copy-construct objects from cached data. It gets (subject, parameters, callback) and is supposed to call callback(subject2, parameters2)
+ * @param {Function} [options.prepare] This is a function that is run to copy-construct objects from cached data.
+ *  It gets (subject, parameters, callback) and is supposed to call callback(subject2, parameters2)
+ *  This function can also set up auxiliary data structures in the web environment.
  * @param {String} [options.throttle] an id to throttle on, or an Object that supports the throttle interface:
  * @param {Function} [options.throttleTry] function(subject, getter, args) - applies or throttles getter with subject, args
  * @param {Function} [options.throttleNext] function (subject) - applies next getter with subject
@@ -11592,6 +11598,26 @@ Q.Template.render = Q.promisify(function _Q_Template_render(name, fields, callba
 }, false, 2);
 
 /**
+ * Methods for treating data
+ * @class Q.Data
+ */
+Q.Data = Q.Method.define({
+	digest: new Q.Method(),
+	compress: new Q.Method(),
+	decompress: new Q.Method(),
+	toBase64: function (bytes) {
+		return btoa(String.fromCharCode.apply(String, new Uint8Array(bytes)));
+	},
+	fromBase64: function (base64) {
+		return Uint8Array.from(atob(base64), function(m) {
+			return m.codePointAt(0)
+		});
+	}
+}, "{{Q}}/js/methods/Q/Data", function() {
+	return [Q];
+});
+
+/**
  * Module for loading text from files.
  * Used for translations, A/B testing and more.
  * @class Q.Text
@@ -14242,8 +14268,8 @@ function _Q_PointerStartHandler(e) {
 var _pointerMoveTimeout = null;
 function _onPointerMoveHandler(evt) { // see http://stackoverflow.com/a/2553717/467460
 	clearTimeout(_pointerMoveTimeout);
-	var screenX = Q.Pointer.getX(evt) - Q.Pointer.scrollLeft();
-	var screenY = Q.Pointer.getY(evt) - Q.Pointer.scrollTop();
+	var screenX = Q.Visual.getX(evt) - Q.Visual.scrollLeft();
+	var screenY = Q.Visual.getY(evt) - Q.Visual.scrollTop();
 	if (!screenX || !screenY || Q.Pointer.canceledClick
 	|| (!evt.button && (evt.touches && !evt.touches.length))) {
 		return;
