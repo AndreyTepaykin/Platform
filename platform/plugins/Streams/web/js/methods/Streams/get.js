@@ -21,7 +21,7 @@ Q.exports(function(priv, Streams, Stream) {
     *	if any fields named in this array are == null
     *   @param {Mixed} [extra."$Module_$fieldname"] any other fields you would like can be added, to be passed to your hooks on the back end
     */
-    Streams.get = Q.getter(function _Streams_get(publisherId, streamName, callback, extra) {
+    var get = Q.getter(function _Streams_get(publisherId, streamName, callback, extra) {
         var args = arguments;
         var f;
         var url = Q.action('Streams/stream?') +
@@ -50,6 +50,7 @@ Q.exports(function(priv, Streams, Stream) {
                 for (var i=0, l=f.length; i<l; ++i) {
                     var cached = Q.Streams.get.cache.get([publisherId, streamName]);
                     if (cached && cached.subject.fields[f[i]] == null) {
+                        // get the stream again, since a field may have changed
                         Q.Streams.get.forget(publisherId, streamName, null, extra);
                         break;
                     }
@@ -108,6 +109,10 @@ Q.exports(function(priv, Streams, Stream) {
                         }
                         if (msg) return;
 
+                        // Trigger events such as onFieldChanged and onAttribute
+                        var ps = Q.Streams.key(publisherId, streamName);
+                        Stream.update(priv._retainedStreams[ps], stream.fields, true);
+
                         // The onRefresh handlers occur after the other callbacks
                         var f = stream.fields;
                         var handler = Q.getObject([f.type], priv._refreshHandlers);
@@ -140,6 +145,7 @@ Q.exports(function(priv, Streams, Stream) {
 		}
 	});
 
-    Q.Streams.get.onCalled.set(priv.onCalledHandler, 'Streams');
-    Q.Streams.get.onResult.set(priv.onResultHandler, 'Streams');
+    get.onCalled.set(priv.onCalledHandler, 'Streams');
+    get.onResult.set(priv.onResultHandler, 'Streams');
+    return get;
 });

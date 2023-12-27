@@ -418,6 +418,7 @@ var priv = {
     _avatarHandlers: {},
     _constructHandlers: {},
     _refreshHandlers: {},
+	_retainHandlers: {},
     _beforeSetHandlers: {},
     _beforeSetAttributeHandlers: {},
     _streamMessageHandlers: {},
@@ -652,7 +653,7 @@ Streams.onRefresh = Q.Event.factory(priv._refreshHandlers, [""]);
  * @param {String} type type of the stream being retained on the client side
  * @return {Q.Event}
  */
- Streams.onRetain = Q.Event.factory(priv._refreshHandlers, [""]);
+ Streams.onRetain = Q.Event.factory(priv._retainHandlers, [""]);
 
  /**
  * Returns Q.Event that occurs when a stream is finally released on the client
@@ -2279,7 +2280,7 @@ Sp.save = function _Stream_prototype_save (options) {
 		var o = Q.extend({
 			evenIfNotRetained: true,
 			messages: true,
-			unlessSocket: false
+			unlessSocket: true
 		}, options);
 		var onRefresh = options && options.onRefresh;
 		Stream.refresh(s.publisherId, s.name, onRefresh, o);
@@ -3313,12 +3314,12 @@ Message.wait = function _Streams_Message_wait (publisherId, streamName, ordinal,
 			   participatingOrObserving = true;
 		   } else {
 			   Q.Streams.get.cache.each([publisherId, streamName], function (key, info) {
-				   var p = Q.getObject("subject.participant", info);
-				   if (p && p.state === 'participating'
-				   && info.subject.readLevel >= 40) {
-					   participant = p;
-					   return false;
-				   }
+					var p = Q.getObject("subject.participant", info);
+					if (p && p.state === 'participating'
+					&& info.subject.readLevel >= 40) {
+						participatingOrObserving = p;
+						return false;
+					}
 			   });
 		   }
 	   }
@@ -3336,8 +3337,6 @@ Message.wait = function _Streams_Message_wait (publisherId, streamName, ordinal,
 	   var event = Q.Streams.Stream.onMessage(publisherId, streamName, ord);
 	   handlerKey = event.addOnce(function () {
 		   p.fill(ord)();
-		   event.remove(handlerKey);
-		   handlerKey = null;
 	   });
 	   waiting[ord] = [event, handlerKey];
    });
@@ -4758,7 +4757,9 @@ function _preloaded(elem) {
 }
 
 function _updateMessageCache(msg) {
-	if (Streams.cache.where === 'local' && Q.Frames && !Q.Frames.isMain()) {
+	if ((Streams.cache.where === 'local'
+	|| Streams.cache.where === 'session')
+	&& Q.Frames && !Q.Frames.isMain()) {
 		return false; // do nothing, this isn't the main frame
 	}
 	Streams.get.cache.each([msg.publisherId, msg.streamName],
