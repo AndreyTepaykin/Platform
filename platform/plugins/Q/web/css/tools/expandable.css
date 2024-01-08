@@ -8,13 +8,14 @@
     font-weight: 300;
     text-align:  left;
     font-size: 20px;
-    padding: 0;
-    margin: 10px 0 5px 0;
+    line-height: 30px;
+    padding: 5px;
+    margin: 5px;
 }
 
 .Q_expandable_tool h2.Q_expandable_title.Q_hover,
 .Q_expandable_tool h2.Q_expandable_title.Q_expanded {
-	background: rgba(180, 200, 220, 0.7);	
+	background: rgba(180, 200, 220, 0.7);
 }
 
 .Q_expandable_tool h2.Q_expandable_title.Q_pressed {
@@ -36,11 +37,12 @@
 
 .Q_expandable_count {
 	float: right;
-	margin: 7px;
     padding: 0 5px 0 5px;
     border-radius: 5px;
 	font-size: 12px;
 	font-weight: bold;
+    margin: 7px;
+    line-height: 20px;
 }
 
 .Q_expandable_container {

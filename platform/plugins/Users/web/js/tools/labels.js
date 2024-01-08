@@ -1,6 +1,11 @@
 (function (Q, $, window, undefined) {
-	
+
 var Users = Q.Users;
+
+var filter = ['Users/']
+if (Q.Assets.Web3.defaultChain) {
+    filter.push(Users.Label.externalPrefix + 'web3/' + Q.Assets.Web3.defaultChain.chainId + '/');
+}
 
 /**
  * Users Labels
@@ -114,7 +119,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
 
 {
     userId: null,
-    filter: ['Users/', Users.Label.externalPrefix + 'web3/' + Q.Assets.Web3.defaultChain.chainId + '/'],
+    filter: filter,
     exclude: null,
     excludeStartsWith: null,
     contactUserId: null,

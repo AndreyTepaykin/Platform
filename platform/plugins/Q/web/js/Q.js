@@ -12,6 +12,10 @@
 var root = this;
 var $ = Q.jQuery = root.jQuery;
 
+// fallback for old Javascript versions
+Symbol = Symbol || {};
+Symbol.iterator = Symbol.iterator || 'nonexistent symbol';
+
 // private properties
 var _isReady = false;
 var _isOnline = null;
@@ -1332,8 +1336,9 @@ Q.typeOf = function _Q_typeOf(value) {
 			s = 'window';
 		} else if (typeof value.typename != 'undefined' ) {
 			return value.typename;
-		} else if (typeof (l=value.length) == 'number' && (l%1==0)
-		&& (l > 0 && ((l-1) in value))) {
+		} else if (value[Symbol.iterator] === 'function'
+		|| (typeof (l=value.length) == 'number' && (l%1==0)
+		&& (l > 0 && ((l-1) in value)))) {
 			return 'array';
 		} else if (typeof value.constructor != 'undefined'
 		&& typeof value.constructor.name != 'undefined') {
@@ -2205,6 +2210,31 @@ Q.getObject = function _Q_getObject(name, context, delimiter, create) {
 };
 
 /**
+ * Traverse all the leaves and optionally modify the values
+ * @static
+ * @method leaves
+ * @param {Object|Array|mixed} structure 
+ * @param {Function} callback This will be called for every leaf. 
+ *   It receives the current value of the leaf, and must return a value
+ *   that will be set there (to skip changes, simply return the current value)
+ * @returns 
+ */
+Q.leaves = function _Q_leaves(structure, callback) {
+	if (Q.isArrayLike(structure)) {
+		for (var i=0, l=structure.length; i<l; ++i) {
+			structure[i] = Q.leaves(structure[i], callback);
+		}
+	} else if (typeof structure === 'object') {
+		for (var k in structure) {
+			structure[k] = Q.leaves(structure[k], callback);
+		}
+	} else { // we found a scalar leaf
+		structure = callback(structure);
+	}
+	return structure;
+};
+
+/**
  * Used to prevent overwriting the latest results on the client with older ones.
  * Typically, you would call this function before making some sort of request,
  * save the ordinal in a variable, and then pass it to the function again inside
@@ -2664,7 +2694,7 @@ Q.swapElements = function(element1, element2) {
  * @param {String} type 
  * @param {Object} [attributes] Pair of attributeName: attributeValue.
  *  Names like "class" should be in quotation marks since they're JS keywords.
- * @param {Array} [elementsToAppend] an array of elements to append, if any
+ * @param {Array|String} [elementsToAppend] either an HTML string or an array of elements to append, if any
  * @return {Element}
  */
 Q.element = function (type, attributes, elementsToAppend) {
@@ -2675,8 +2705,12 @@ Q.element = function (type, attributes, elementsToAppend) {
 		}
 	}
 	if (elementsToAppend) {
-		for (var i=0, l=elementsToAppend.length; i<l; ++i) {
-			element.append(elementsToAppend[i]);
+		if (typeof elementToAppend === 'string') {
+			element.innerHTML = elementsToAppend
+		} else {
+			for (var i=0, l=elementsToAppend.length; i<l; ++i) {
+				element.append(elementsToAppend[i]);
+			}
 		}
 	}
 	return element;
@@ -2687,13 +2721,13 @@ Q.element = function (type, attributes, elementsToAppend) {
  * @method $
  * @static
  * @param {String} selector Any selector passed to querySelectorAll
- * @param {Element} [element=document] defaults to the entire document
+ * @param {Element} [container=document] defaults to the entire document
  * @param {Boolean} [toArray] whether to convert NodeList to a static array instead.
  *   Note: in that case, the result won't be live anymore.
  * @return {Iterator|Array}
  */
-Q.$ = function (selector, element, toArray) {
-	var list = (element || document).querySelectorAll(selector);
+Q.$ = function (selector, container, toArray) {
+	var list = (container || document).querySelectorAll(selector);
 	return toArray ? Array.prototype.slice.call(list) : list.values();
 };
 
@@ -2996,23 +3030,30 @@ Evp.set = function _Q_Event_prototype_set(handler, key, prepend) {
 			return null;
 		}
 	}
-	var isTool = (Q.typeOf(key) === 'Q.Tool');
 	if (key === true || (key === undefined
 	&& Q.Page && Q.Page.beingActivated)) {
 		Q.Event.forPage.push(this);
+	} else if (key === undefined) {
+		key = Q.Tool.beingActivated;
 	}
+	var isTool = (Q.typeOf(key) === 'Q.Tool');
 	key = Q.calculateKey(key, this.handlers, this.keys.length);
-	this.handlers[key] = handler; // can be a function, string, Q.Event, etc.
 	if (this.keys.indexOf(key) < 0) {
 		if (prepend) {
 			this.keys.unshift(key);
 		} else {
 			this.keys.push(key);
 		}
-		if (isTool) {
-			Q.Event.forTool[key] = Q.Event.forTool[key] || [];
-			Q.Event.forTool[key].push(this);
-		}
+	}
+	if (isTool) {
+		Q.Event.forTool[key] = Q.Event.forTool[key] || [];
+		Q.Event.forTool[key].push(this);
+	}
+	if (isTool || key === true) {
+		this.handlers[key] = this.handlers[key] || [];
+		this.handlers[key].push(handler);
+	} else {
+		this.handlers[key] = handler; // can be a function, string, Q.Event, etc.
 	}
 	if (this.keys.length === 1 && this._onFirst) {
 		this._onFirst.handle.call(this, handler, key, prepend);
@@ -3411,9 +3452,7 @@ Evp.onStop = function () {
  *  that was either already stored under those index fields or newly created.
  */
 Q.Event.factory = function (collection, defaults, callback, removeOnEmpty) {
-	if (!collection) {
-		collection = {};
-	}
+	collection = collection || {};
 	defaults = defaults || [];
 	function _remove() {
 		var delimiter = "\t";
@@ -4413,6 +4452,7 @@ Q.getter = function _Q_getter(original, options) {
 		ignoreCache = true;
 		return gw.apply(this, arguments);
 	};
+	
 
 	if (original.batch) {
 		gw.batch = original.batch;
@@ -5367,6 +5407,7 @@ Tp.remove = function _Q_Tool_prototype_remove(removeCached, removeElementAfterLa
 		// keep removing the first element of the array until it is empty
 		arr[0].remove(tool);
 	}
+	delete Q.Event.forTool[key];
 	
 	var p = Q.Event.jQueryForTool[key];
 	if (p) {
@@ -5374,7 +5415,8 @@ Tp.remove = function _Q_Tool_prototype_remove(removeCached, removeElementAfterLa
 			var off = p[i][0];
 			root.jQuery.fn[off].call(p[i][1], p[i][2], p[i][3]);
 		}
-		Q.Event.jQueryForTool[key] = [];
+		// Q.Event.jQueryForTool[key] = [];
+		delete Q.Event.jQueryForTool[key];
 	}
 	
 	return this.removed = true;
@@ -5886,6 +5928,8 @@ function _loadToolScript(toolElement, callback, shared, parentId, options) {
 				toolConstructor = function () {
 					log("Missing tool constructor for " + toolName);
 				}; 
+				Q.Tool.onLoadedConstructor(toolName)
+				.handle.call(Q.Tool, toolName, toolConstructor);
 			}
 		}
 	});
@@ -7009,14 +7053,18 @@ Q.IndexedDB = {};
  * @method open
  * @param {String} dbName The name of the database
  * @param {String} storeName The name of the object store name inside the database
- * @param {String} keyPath The key path inside the object store
+ * @param {String|Object} params Parameters for creating the key store.
+ *   You can also pass a string here, if you're just specifying the keyPath.
+ * @param {String} params.keyPath The key path inside the object store.
+ * @param {Array} params.indexes Array of arrays for createIndex consisting of [indexName, keyPath, options]
  * @param {Function} callback Receives (error, ObjectStore)
  * @return {Q.Promise}
  */
-Q.IndexedDB.open = Q.promisify(function (dbName, storeName, keyPath, callback) {
+Q.IndexedDB.open = Q.promisify(function (dbName, storeName, params, callback) {
 	if (!root.indexedDB) {
 		return false;
 	}
+	var keyPath = (typeof params === 'string' ? params : params.keyPath);
 	var lskey = 'Q_IndexedDB_version';
 	var version = localStorage.getItem(lskey) || 1;
 	var open = indexedDB.open(dbName, version);
@@ -7026,7 +7074,13 @@ Q.IndexedDB.open = Q.promisify(function (dbName, storeName, keyPath, callback) {
 		if (!db.objectStoreNames.contains(storeName)
 		&& !_triedAddingObjectStore) {
 			_triedAddingObjectStore = true;
-			db.createObjectStore(storeName, {keyPath: keyPath});
+			var store = db.createObjectStore(storeName, {keyPath: keyPath});
+			var idxs = params.indexes;
+			if (idxs) {
+				for (var i=0, l=idxs.length; i<l; ++i) {
+					store.createIndex(idxs[i][0], idxs[i][1], idxs[0][2]);
+				}
+			}
 		}
 	};
 	open.onerror = function (error) {
@@ -8081,8 +8135,9 @@ var _supportsPassive;
  * in calls to Q.removeEventListener().
  * @static
  * @method addEventListener
- * @param {HTMLElement} element
+ * @param {HTMLElement|Array|NodeList} element
  *  An HTML element, window or other element that supports listening to events
+ *  You can also pass an Array or NodeList of elements here.
  * @param {String|Array|Object|Function} eventName
  *  A space-delimited string of event names, or an array of event names.
  *  You can also pass an object of { eventName: eventHandler } pairs, in which csae
@@ -8099,7 +8154,16 @@ var _supportsPassive;
  * @return {Function} the wrapper function to pass to corresponding Q.removeEventListener
  */
 Q.addEventListener = function _Q_addEventListener(element, eventName, eventHandler, useCapture, hookStopPropagation) {
+	if (Q.isEmpty(element) || Q.isEmpty(eventHandler)) {
+		return false;
+	}
 	useCapture = useCapture || false;
+	if (Q.isArrayLike(element)) {
+		for (var i=0, l=element.length; i<l; ++i) {
+			Q.addEventListener(element[i], eventName, eventHandler, useCapture, hookStopPropagation);
+		}
+		return;
+	}
 	if (Q.isPlainObject(eventName)) {
 		for (var k in eventName) {
 			Q.addEventListener(element, k, eventName[k], eventHandler);
@@ -8217,19 +8281,26 @@ Event.prototype.stopPropagation = _Q_Event_stopPropagation;
  * Remove an event listener from an element
  * @static
  * @method removeEventListener
- * @param {HTMLElement} element
+ * @param {HTMLElement|Array|NodeList} element An element, or array or NodeList of elements, on which
+ *  Q.addEventListener was previously called.
  * @param {String|Array|Object|Function} eventName
  *  A space-delimited string of event names, or an array of event names.
  *  You can also pass an object of { eventName: eventHandler } pairs, in which csae
  *  the next parameter would be useCapture.
  *  You can also pass functions such as Q.Pointer.start here.
- * @param {Function} eventHandler
- * @param {boolean} useCapture
- * return {boolean} Should normally return true, unless listener could not be found or removed
+ * @param {Function} eventHandler Pass the same eventHandler as was passed to Q.addEventListener
+ * @param {boolean} useCapture Pass the same useCapture as was passed to Q.addEventListener
+ * @return {boolean} Should normally return true, unless listener could not be found or removed
  */
 Q.removeEventListener = function _Q_removeEventListener(element, eventName, eventHandler, useCapture) {
 	if (Q.isEmpty(element) || Q.isEmpty(eventHandler)) {
 		return false;
+	}
+	if (Q.isArrayLike(element)) {
+		for (var i=0, l=element.length; i<l; ++i) {
+			Q.removeEventListener(element[i], eventName, eventHandler, useCapture, hookStopPropagation);
+		}
+		return;
 	}
 
 	useCapture = useCapture || false;
@@ -10127,14 +10198,19 @@ Q.clientId = function () {
 };
 
 /**
- * Call this function to get an rfc4122 version 4 compliant id for the current client
+ * Call this function to generate an rfc4122 version 4 compliant uuid given a key.
+ * Repeated calls with the same key will yield the same result until the page is reloaded.
  * @static
  * @method uuid
+ * @param {String} [key=Q.clientId()]
  */
-Q.uuid = function () {
+Q.uuid = function (key) {
 	// TODO: consider replacing with
 	// https://github.com/broofa/node-uuid/blob/master/uuid.js
-	return Q.uuid.value = Q.uuid.value || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+	if (!key) {
+		key = Q.clientId();
+	}
+	return Q.uuid[key] = Q.uuid[key] || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
 		var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
 		return v.toString(16);
 	});
@@ -10785,127 +10861,135 @@ Q.loadUrl.loading = {};
  *  @param {String} [options.target] the name of a window or iframe to use as the target. In this case callables is treated as a url.
  *  @param {String|Array} [options.slotNames] a comma-separated list of slot names, or an array of slot names
  *  @param {boolean} [options.quiet] defaults to false. If true, allows visual indications that the request is going to take place.
+ *  @param {Function} [options.handleException] pass a function here to handle thrown exceptions instead of rethrowing them
  * @return {number}
  *  The number of handlers executed
  */
-Q.handle = function _Q_handle(callables, /* callback, */ context, args, options) {
-	if (!callables) {
-		return 0;
-	}
-	if (!context) context = root;
-	if (!args) args = [];
-	var i=0, count=0, k, result;
-	if (callables === location) callables = location.href;
-	switch (Q.typeOf(callables)) {
-		case 'function':
-			result = callables.apply(context, args);
-			if (result === false) return false;
-			return 1;
-		case 'array':
-			for (i=0; i<callables.length; ++i) {
-				result = Q.handle(callables[i], context, args);
-				if (result === false) return false;
-				count += result;
-			}
-			return count;
-		case 'Q.Event':
-			return callables.handle.apply(context, args);
-		case 'object':
-			for (k in callables) {
-				result = Q.handle(callables[k], context, args);
-				if (result === false) return false;
-				count += result;
-			}
-			return count;
-		case 'string':
-			var o = Q.extend({}, Q.handle.options, options);
-			if (!callables.isUrl()
-			&& (callables[0] != '#')
-			&& (!o.target || o.target.toLowerCase() === '_self')) {
-				// Assume this is not a URL.
-				// Try to evaluate the expression, and execute the resulting function
-				var c = Q.getObject(callables, context) || Q.getObject(callables);
-				return Q.handle(c, context, args);
-			}
-			// Assume callables is a URL
-			if (o.dontReload && Q.info && Q.info.url === callables) {
-				return 0;
-			}
-			var callback = null;
-			if (typeof arguments[1] === 'function') {
-				// Some syntactic sugar: (url, callback) omitting context, args, options
-				callback = arguments[1];
-				o = Q.handle.options;
-			} else if (arguments[1] && (arguments[3] === undefined)) {
-				// Some more syntactic sugar: (url, options, callback) omitting context, args, options
-				o = Q.extend({}, Q.handle.options, arguments[1]);
-				if (typeof arguments[2] === 'function') {
-					callback = arguments[2];
-				}
-			} else {
-				o = Q.extend({}, Q.handle.options, options);
-				if (o.callback) {
-					callback = o.callback;
-				}
-			}
-			var baseUrl = Q.baseUrl();
-			var sameDomain = callables.sameDomain(baseUrl);
-			if (callables[0] === '#') {
-				root.location.hash = callables;
-			} else if (o.loadUsingAjax && sameDomain
-			&& (!o.target || o.target === true || o.target === '_self')) {
-				if (callables.search(baseUrl) === 0) {
-					// Use AJAX to refresh the page whenever the request is for a local page
-					Q.loadUrl(callables, Q.extend({
-						loadExtras: 'all',
-						ignoreHistory: false,
-						onActivate: function () {
-							if (callback) callback();
-						}
-					}, o)).then(function (a) {
-						
-					}, function (err) {
-						debugger; // pause here if debugging
-					});
-				} else if (o.externalLoader) {
-					o.externalLoader.apply(this, arguments);
-				} else {
-					root.location = callables;
-				}
-			} else {
-				if (Q.typeOf(o.fields) === 'object') {
-					var method = 'POST';
-					if (o.method) {
-						switch (o.method.toUpperCase()) {
-							case "GET":
-							case "POST":
-								method = o.method;
-								break;
-							default:
-								method = 'POST'; // sadly HTML forms don't support other methods
-								break;
-						}
-					}
-					Q.formPost(callables, o.fields, method, {onLoad: o.callback, target: o.target});
-				} else {
-					if (Q.info && callables === baseUrl) {
-						callables+= '/';
-					}
-					if (!o.target || o.target === true || o.target === '_self') {
-						if (root.location.href == callables) {
-							root.location.reload(true);
-						} else {
-							root.location = callables;
-						}
-					} else {
-						root.open(callables, o.target);
-					}
-				}
-			}
-			Q.handle.onUrl.handle(callables, o);
-			return 1;
-		default:
+ Q.handle = function _Q_handle(callables, /* callback, */ context, args, options) {
+	try {
+		if (!callables) {
 			return 0;
+		}
+		if (!context) context = root;
+		if (!args) args = [];
+		var i=0, count=0, k, result;
+		if (callables === location) callables = location.href;
+		switch (Q.typeOf(callables)) {
+			case 'function':
+				result = callables.apply(context, args);
+				if (result === false) return false;
+				return 1;
+			case 'array':
+				for (i=0; i<callables.length; ++i) {
+					result = Q.handle(callables[i], context, args);
+					if (result === false) return false;
+					count += result;
+				}
+				return count;
+			case 'Q.Event':
+				return callables.handle.apply(context, args);
+			case 'object':
+				for (k in callables) {
+					result = Q.handle(callables[k], context, args);
+					if (result === false) return false;
+					count += result;
+				}
+				return count;
+			case 'string':
+				var o = Q.extend({}, Q.handle.options, options);
+				if (!callables.isUrl()
+				&& (callables[0] != '#')
+				&& (!o.target || o.target.toLowerCase() === '_self')) {
+					// Assume this is not a URL.
+					// Try to evaluate the expression, and execute the resulting function
+					var c = Q.getObject(callables, context) || Q.getObject(callables);
+					return Q.handle(c, context, args);
+				}
+				// Assume callables is a URL
+				if (o.dontReload && Q.info && Q.info.url === callables) {
+					return 0;
+				}
+				var callback = null;
+				if (typeof arguments[1] === 'function') {
+					// Some syntactic sugar: (url, callback) omitting context, args, options
+					callback = arguments[1];
+					o = Q.handle.options;
+				} else if (arguments[1] && (arguments[3] === undefined)) {
+					// Some more syntactic sugar: (url, options, callback) omitting context, args, options
+					o = Q.extend({}, Q.handle.options, arguments[1]);
+					if (typeof arguments[2] === 'function') {
+						callback = arguments[2];
+					}
+				} else {
+					o = Q.extend({}, Q.handle.options, options);
+					if (o.callback) {
+						callback = o.callback;
+					}
+				}
+				var baseUrl = Q.baseUrl();
+				var sameDomain = callables.sameDomain(baseUrl);
+				if (callables[0] === '#') {
+					root.location.hash = callables;
+				} else if (o.loadUsingAjax && sameDomain
+				&& (!o.target || o.target === true || o.target === '_self')) {
+					if (callables.search(baseUrl) === 0) {
+						// Use AJAX to refresh the page whenever the request is for a local page
+						Q.loadUrl(callables, Q.extend({
+							loadExtras: 'all',
+							ignoreHistory: false,
+							onActivate: function () {
+								if (callback) callback();
+							}
+						}, o)).then(function (a) {
+							
+						}, function (err) {
+							debugger; // pause here if debugging
+						});
+					} else if (o.externalLoader) {
+						o.externalLoader.apply(this, arguments);
+					} else {
+						root.location = callables;
+					}
+				} else {
+					if (Q.typeOf(o.fields) === 'object') {
+						var method = 'POST';
+						if (o.method) {
+							switch (o.method.toUpperCase()) {
+								case "GET":
+								case "POST":
+									method = o.method;
+									break;
+								default:
+									method = 'POST'; // sadly HTML forms don't support other methods
+									break;
+							}
+						}
+						Q.formPost(callables, o.fields, method, {onLoad: o.callback, target: o.target});
+					} else {
+						if (Q.info && callables === baseUrl) {
+							callables+= '/';
+						}
+						if (!o.target || o.target === true || o.target === '_self') {
+							if (root.location.href == callables) {
+								root.location.reload(true);
+							} else {
+								root.location = callables;
+							}
+						} else {
+							root.open(callables, o.target);
+						}
+					}
+				}
+				Q.handle.onUrl.handle(callables, o);
+				return 1;
+			default:
+				return 0;
+		}
+	} catch (exception) {
+		if (options && options.handleException) {
+			return options.handleException(exception);
+		}
+		throw exception;
 	}
 };
 Q.handle.options = {
@@ -12399,8 +12483,10 @@ function _listenForVisibilityChange() {
 			return false;
 		}
 	});
-	Q.addEventListener(document, visibilityChange, function () {
-		Q.onVisibilityChange.handle.call(document, !Q.isDocumentHidden());
+	Q.addEventListener(document, [visibilityChange, 'pause', 'resume', 'resign', 'active'], function () {
+		setTimeout(function () {
+			Q.onVisibilityChange.handle.call(document, !Q.isDocumentHidden());
+		}, 0);
 	}, false);
 }
 _listenForVisibilityChange();
@@ -12413,10 +12499,19 @@ function _handleVisibilityChange(shown) {
 	}
 }
 Q.onVisibilityChange.set(_handleVisibilityChange, 'Q.Animation');
-Q.isDocumentHidden = function () {
-	return document.hidden || document.msHidden 
-		|| document.webkitHidden || document.oHidden;
+Q.isDocumentHidden = function (event) {
+	if (event) {
+		if (event.type == 'pause' || event.type == 'resign') {
+			return true;
+		}
+		if (event.type == 'resume' || event.type == 'active') {
+			return false;
+		}
+	}
+	return !!(document.hidden || document.msHidden 
+		|| document.webkitHidden || document.oHidden);
 };
+
 
 Q.Animation.playing = {};
 var _Q_Animation_index = 0;
@@ -13678,7 +13773,7 @@ Q.Visual = Q.Pointer = {
                     if (Q.isArrayLike(targets)) {
                         img1.target = targets[0];
                         for (i=1, l=targets.length; i<l; ++i) {
-                            if (targets[i] && targets[i].isConnected) {
+                            if (!targets[i] || !targets[i].isConnected) {
                                 continue;
                             }
                             var img2 = img1.cloneNode(false);
@@ -13882,7 +13977,17 @@ Q.Visual = Q.Pointer = {
 		var div = document.createElement('div');
 		div.addClass('Q_touchlabel');
 		document.body.appendChild(div);
+		var _scrollLeft, _scrollTop;
 		Q.addEventListener(element, 'pointerdown pointermove', function (e) {
+			var p = e.target.scrollingParent() || document.body;
+			if (e.type === 'pointerdown') {
+				_scrollLeft = p.scrollLeft;
+				_scrollTop = p.scrollTop;
+			} else if (_scrollLeft !== p.scrollLeft
+			        || _scrollTop !== p.scrollTop) {
+				div.removeClass('Q_touchlabel_show');
+				return;
+			}
 			if (Q.info.isTouchscreen && !Q.Visual.isPressed(e)) {
 				return;
 			}
@@ -14480,6 +14585,7 @@ Q.Dialogs = {
 				maskDefault = false;
 			}
 		}
+		document.activeElement && document.activeElement.blur();
 		var o = Q.extend(
 			{mask: maskDefault}, 
 			Q.Dialogs.options, 
@@ -14593,7 +14699,6 @@ Q.Dialogs = {
 				$dialog.data('Q/dialog').close();
 			}
 		}
-		Q.Pointer.cancelClick();
 		return $dialog[0];
 	},
 
@@ -15802,8 +15907,9 @@ function _addHandlebarsHelpers() {
 	}
 	if (!Handlebars.helpers.getObject) {
 		Handlebars.registerHelper('getObject', function() {
-			var result = null;
-			Q.each(arguments, function (i, key) {
+			var args = Array.prototype.slice.call(arguments);
+			var result = args.pop().data.root;
+			Q.each(args, function (i, key) {
 				if (typeof key === 'string' || typeof key === 'number') {
 					result = result[key];
 				}
