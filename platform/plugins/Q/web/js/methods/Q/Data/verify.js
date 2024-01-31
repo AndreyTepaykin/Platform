@@ -18,8 +18,8 @@ Q.exports(function (Q) {
      *   Use Q.Data.fromBase64() if the strings are in String format.
      * @param {Object} [algo] you can specify a different algorithm
      * @param {String} [algo.name="ECDSA"]
-     * @param {String} [algo.namedCurve="P-384"]
-     * @param {String} [algo.hash="SHA-384"]
+     * @param {String} [algo.namedCurve="P-256"]
+     * @param {String} [algo.hash="SHA-256"]
      * @param {Function} callback receives (err, result)
      * @return {Q.Promise} Resolves with array of booleans corresponding
      *   to each public key, indicating whether the verifications succeeded.
@@ -28,13 +28,13 @@ Q.exports(function (Q) {
     return function Q_Data_verify(data, publicKeyRawStrings, signatures, algo) {
         algo = Q.extend({
             name: 'ECDSA',
-            namedCurve: 'P-384',
-            hash: { name: "SHA-384" }
+            namedCurve: 'P-256',
+            hash: { name: "SHA-256" }
         }, algo);
         return Q.Promise.all(
             publicKeyRawStrings.map((pks, i) => 
-            crypto.subtle.importKey('raw', Q.Data.fromBase64(pks), algo, false, ['verify'])
-            .then(publicKey => crypto.subtle.verify(algo, publicKey, signatures[i], new TextEncoder().encode(data)))
+                crypto.subtle.importKey('raw', Q.Data.fromBase64(pks), algo, false, ['verify']
+            ).then(publicKey => crypto.subtle.verify(algo, publicKey, signatures[i], new TextEncoder().encode(data)))
         )
     );
   };
