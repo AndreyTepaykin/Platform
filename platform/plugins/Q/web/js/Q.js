@@ -6164,7 +6164,7 @@ Q.Links = {
  * @param {boolean} [options.isGetter] set to true to indicate that the method will be wrapped with Q.getter()
  */
 Q.Method = function (properties, options) {
-	this.properties = Q.extend(this, properties);
+	Q.extend(this, properties);
 	this.__options = options || {};
 };
 
@@ -6244,7 +6244,7 @@ Q.Method.define = function (o, prefix, closure) {
 				return f.apply(t, a);
 			});
 		};
-		Q.extend(o[k], method.properties);
+		Q.extend(o[k], method);
 		if (method.__options.isGetter) {
 			o[k].force = function _Q_Method_force_shim () {
 				var url = Q.url(prefix + '/' + k + '.js');
@@ -12509,10 +12509,21 @@ function _listenForVisibilityChange() {
 			return false;
 		}
 	});
-	Q.addEventListener(document, [visibilityChange, 'pause', 'resume', 'resign', 'active'], function () {
-		setTimeout(function () {
-			Q.onVisibilityChange.handle.call(document, !Q.isDocumentHidden());
-		}, 0);
+	var _isDocumentHidden = null;
+	Q.addEventListener(document, [visibilityChange, 'pause', 'resume', 'resign', 'active'],
+	function (event) {
+		if (event.type !== 'visibilityChange' && _isDocumentHidden === null) {
+			_isDocumentHidden = Q.isDocumentHidden(event);
+			setTimeout(function () {
+				_isDocumentHidden = null;
+			}, 100);
+		}
+		Q.debounce(function (event) {
+			if (_isDocumentHidden === null) {
+				_isDocumentHidden = Q.isDocumentHidden();
+			}
+			Q.onVisibilityChange.handle.call(document, !_isDocumentHidden, event);
+		}, 10)(event);
 	}, false);
 }
 _listenForVisibilityChange();
@@ -12534,8 +12545,7 @@ Q.isDocumentHidden = function (event) {
 			return false;
 		}
 	}
-	return !!(document.hidden || document.msHidden 
-		|| document.webkitHidden || document.oHidden);
+	return document.visibilityState === 'hidden';
 };
 
 
