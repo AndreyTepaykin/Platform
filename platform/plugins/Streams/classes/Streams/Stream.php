@@ -459,18 +459,71 @@ class Streams_Stream extends Base_Streams_Stream
 		$publisherId, 
 		$streamType, 
 		$className, 
-		&$templateType = null
+		&$templateType = null,
+		$extraCriteria = array()
 	) {
 		// fetch template for stream's PK - publisher & name
 		// if $templateType == true return all found templates sorted by type,
 		// otherwise return one template and its type
 		$field = ($className === 'Streams_Stream' ? 'name' : 'streamName');
+		$criteria = array(
+			'publisherId' => array('', $publisherId), // generic or specific publisher
+			$field => $streamType . '/'
+		);
+		if ($extraCriteria) {
+			$criteria = array_merge($criteria, $extraCriteria);
+		}
 		$rows = call_user_func(array($className, 'select'))
-			->where(array(
-				'publisherId' => array('', $publisherId), // generic or specific publisher
-				$field => $streamType.'/'
-			))->fetchDbRows();
+			->where($criteria)->fetchDbRows();
 		return self::sortTemplateTypes($rows, 'publisherId', $templateType, $field);
+	}
+
+	/**
+	 * @method getStreamsTemplates
+	 * @static
+	 * @param {string} $publisherId The publisher of the stream
+	 * @param {string} $streamTypes The types of the streams
+	 * @param {string} $className The class extending Db_Row to fetch from the database
+	 * @param {&integer} [$templateType=null] Gets filled with the template type 0-4. 
+	 *   Set to true to return all templates.
+	 * @return {Streams_Stream|array} Returns an array of arrays,
+	 *   with keys = templateStreamName and values are either
+	 *   template stream, or an array if $templateType is true
+	 */
+	static function getStreamsTemplates(
+		$publisherId, 
+		$streamTypes, 
+		$className, 
+		&$templateType = null,
+		$extraCriteria = array()
+	) {
+		$streamTypes = array_unique($streamTypes);
+		// fetch template for stream's PK - publisher & name
+		// if $templateType == true return all found templates sorted by type,
+		// otherwise return one template and its type
+		$field = ($className === 'Streams_Stream' ? 'name' : 'streamName');
+		$templateNames = array();
+		foreach ($streamTypes as $type) {
+			$templateNames[] = "$type/";
+		}
+		$criteria = array(
+			'publisherId' => array('', $publisherId), // generic or specific publisher
+			$field => $templateNames
+		);
+		if ($extraCriteria) {
+			$criteria = array_merge($criteria, $extraCriteria);
+		}
+		$rows = call_user_func(array($className, 'select'))
+			->where($criteria)
+			->fetchDbRows();
+		$results = array();
+		foreach ($rows as $row) {
+			$results[$row->$field][] = $row;
+		}
+		foreach ($results as $templateStreamName => $templates) {
+			$results[$templateStreamName] = self::sortTemplateTypes($templates, 'publisherId', $templateType, $field);
+		}
+		return $results;
 	}
 	
 	/**
@@ -503,16 +556,63 @@ class Streams_Stream extends Base_Streams_Stream
 	}
 
 	/**
+	 * Called by Db_Row_Mysql->insertManyAndExecute() instead of beforeSave()
+	 * to fetch templates in bulk. Calls ->beforeSave() internally on the rows.
+	 */
+	static function beforeInsertManyAndExecute($rows)
+	{
+		$a = array();
+		$r = array();
+		foreach ($rows as $row) {
+			$a[$row->publisherId][$row->type] = true;
+			$r[$row->publisherId][] = $row;
+		}
+		foreach ($a as $publisherId => $b) {
+			$types = array_keys($b);
+			$templateType = null;
+			$bulkStreamTemplate = self::getStreamsTemplates(
+				$publisherId, $types, 'Streams_Stream', $templateType
+			);
+			$templateType = true;
+			$bulkAccessTemplates = self::getStreamsTemplates(
+				$publisherId, $types, 'Streams_Access', $templateType
+			);
+			$streams = $r[$publisherId];
+			$accessRows = array();
+			foreach ($streams as $s) {
+				$tsn = $s->type.'/';
+				$streamTemplate = Q::ifset($bulkStreamTemplate, $tsn, false);
+				$accessTemplates = Q::ifset($bulkAccessTemplates, $tsn, array(
+					array(), array(), array(), array()
+				));
+				$s->beforeSave($s->fields, array(), array(
+					'streamTemplate' => $streamTemplate,
+					'accessTemplates' => $accessTemplates,
+					'accessRows' => &$accessRows
+				));
+			}
+			Streams_Access::insertManyAndExecute($accessRows);
+		}
+	}
+
+	/**
 	 * Does necessary preparations for saving a stream in the database.
 	 * @method beforeSave
 	 * @param {array} $modifiedFields
 	 *	The array of fields
+	 * @param {array} $options
+	 *  Not used at the moment
+	 * @param {array} $internal
+	 *  Can be used to pass pre-fetched objects
 	 * @return {array}
 	 * @throws {Exception}
 	 *	If mandatory field is not set
 	 */
-	function beforeSave($modifiedFields)
-	{
+	function beforeSave(
+		$modifiedFields,
+		$options = array(),
+		$internal = array()
+	) {
 		if (empty($this->attributes)) {
 			$this->attributes = null;
 		}
@@ -568,7 +668,9 @@ class Streams_Stream extends Base_Streams_Stream
 			$magicFieldNames = array('insertedTime', 'updatedTime', 'name');
 			$privateFieldNames = array_diff($privateFieldNames, $magicFieldNames);
 
-			$streamTemplate = self::getStreamTemplate(
+			$streamTemplate = isset($internal['streamTemplate'])
+			? $internal['streamTemplate']
+			: self::getStreamTemplate(
 				$this->publisherId, $this->type, 'Streams_Stream'
 			);
 			$fieldNames = Streams_Stream::fieldNames();
@@ -610,7 +712,9 @@ class Streams_Stream extends Base_Streams_Stream
 
 			// Get all access templates and save corresponding access
 			$templateType = true;
-			$accessTemplates = self::getStreamTemplate(
+			$accessTemplates = isset($internal['accessTemplates'])
+			? $internal['accessTemplates']
+			: self::getStreamTemplate(
 				$this->publisherId, $this->type, 'Streams_Access', $templateType
 			);
 			for ($i=1; $i<=3; ++$i) {
@@ -619,8 +723,13 @@ class Streams_Stream extends Base_Streams_Stream
 					$access->copyFrom($template->toArray());
 					$access->publisherId = $this->publisherId;
 					$access->streamName = $this->name;
-					if (!$access->save(true)) {
-						return false; // JUNK: this leaves junk in the database, but preserves consistency
+					if (isset($internal['accessRows'])) {
+						$key = implode("\t", array_values($access->calculatePKValue(true)));
+						$internal['accessRows'][$key] = $access;
+					} else {
+						if (!$access->save()) {
+							return false; // JUNK: this leaves junk in the database, but preserves consistency
+						}
 					}
 				}
 			}
@@ -954,8 +1063,8 @@ class Streams_Stream extends Base_Streams_Stream
 	 */
 	function getAllPermissions()
 	{
-		if ($permissions = $this->permissions) {
-			return Q::json_decode($permissions, true);
+		if (!empty($this->permissions)) {
+			return Q::json_decode($this->permissions, true);
 		}
 		return array();
 	}
