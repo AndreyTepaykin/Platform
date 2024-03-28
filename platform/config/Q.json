@@ -53,9 +53,6 @@
 				"include": []
 			},
 			"statusBarOverlapped": false,
-			"static": {
-				"dir": "{{web}}"
-			},
 			"contentSecurityPolicy": {
 				"script": [
 					"'unsafe-eval'",
@@ -75,6 +72,28 @@
 				],
 				"styleHashes": false,
 				"worker": ["'self'"]
+			}
+		},
+		"static": {
+			"dir": "{{web}}",
+			"redirect": {
+				"": ".html",
+				"landing": ".landing.html",
+				"authenticated": false
+			},
+			"generate": {
+				".html": {
+					"session": "sessionId_static",
+					"routes": {}
+				},
+				".landing.html": {
+					"session": "",
+					"routes": {}
+				},
+				".authenticated.html": {
+					"session": "sessionId_authenticated_static",
+					"routes": {}
+				}
 			}
 		},
 		"analytics": {
@@ -180,7 +199,7 @@
 				}
 			},
 			"prettyPrintData": true,
-			"preload": "inline" /* can be "inline", "header" or null */
+			"preload": null /* can be "inline", "header" or null */
 		},
 		"stylesheets": {
 			"responseExtras": {
