@@ -88,9 +88,11 @@ Q.Tool.jQuery('Q/clickable', function _Q_clickable(o) {
 	    if (!o.selectable) {
 			$this[0].preventSelections(true);
 		}
-		var rect = $this[0].getBoundingClientRect();
-		var csw = Math.ceil(rect.width);
-		var csh = Math.ceil(rect.height);
+		// var rect = $this[0].getBoundingClientRect();
+		var bw = parseInt($this.css('border-left-width')) + parseInt($this.css('border-right-width'));
+		var bh = parseInt($this.css('border-top-width')) + parseInt($this.css('border-bottom-width'));
+		var csw = Math.ceil($this[0].offsetWidth + bw);
+		var csh = Math.ceil($this[0].offsetHeight + bh);
 		// $this.css('height', $this.height()+'px');
 		var $container = $('<span class="Q_clickable_container" />').css({
 			'display': (display === 'inline' || display === 'inline-block') ? 'inline-block' : display,
@@ -240,9 +242,10 @@ Q.Tool.jQuery('Q/clickable', function _Q_clickable(o) {
 					return;
 				}
 				$stretcher.removeClass('Q_clickable_sized');
-				var rect = $this[0].getBoundingClientRect();
-				var csw = Math.ceil(rect.width);
-				var csh = Math.ceil(rect.height);
+				var bw = parseInt($this.css('border-left-width')) + parseInt($this.css('border-right-width'));
+				var bh = parseInt($this.css('border-top-width')) + parseInt($this.css('border-bottom-width'));
+				var csw = Math.ceil($this[0].offsetWidth + bw);
+				var csh = Math.ceil($this[0].offsetHeight + bh);
 				if (csw2 != csw || csh2 != csh) {
 					if (!$this.is(':visible')) {
 						return;
@@ -403,12 +406,12 @@ Q.Tool.jQuery('Q/clickable', function _Q_clickable(o) {
 				if (overElement) {
 					setTimeout(function () {
 						Q.Pointer.cancelClick();
-					}, 10); // give it a chance to handle clicks
+					}, 400); // give it a chance to handle clicks
 					state.animation = Q.Animation.play(function(x, y) {
 						scale(factor + y * (o.release.size-factor));
 						$this.css('opacity', o.press.opacity + y * (o.release.opacity-o.press.opacity));
 					}, o.release.duration, o.release.ease);
-					var key = state.animation.onComplete.set(function () {
+					state.animation.onComplete.set(function () {
 						state.animation = Q.Animation.play(function(x, y) {
 							scale(o.release.size + y * (1-o.release.size));
 							$this.css('opacity', 1 + y * (1 - o.release.opacity));

@@ -86,6 +86,9 @@ Q.Tool.define("Streams/interests", function (options) {
 					count += Object.keys(interests[""]).length;
 				}
 				Q.each(interests, function (subcategory, list) {
+					if (subcategory === "") {
+						return;
+					}
 					var h3 = "<h3 class='Streams_interests_subcategory'>"+subcategory+"</h3>";
 					content += h3 + _listInterests(category, list);
 					count += Object.keys(list).length;
@@ -127,7 +130,7 @@ Q.Tool.define("Streams/interests", function (options) {
 				state.communityId = state.communityId || Q.Users.communityId;
 
 				Streams.Interests.load(state.communityId, state.skipStreams, function () {
-					var categories = Object.keys(Interests.all[state.communityId]) || [];
+					var categories = Object.keys(Interests.all[state.communityId] || {}) || [];
 					state.ordering = state.ordering || Q.getObject(['Interests', 'ordering', state.communityId], Streams) || categories;
 
 					if (state.ordering.length === 1 && Q.typeOf(Q.getObject("expandable.expanded", state)) === "undefined") {

@@ -192,16 +192,18 @@
 
 		function _init() {
 			if (!Users.init.facebook.completed[appId] && platformAppId) {
-				FB.init(Q.extend({
-					version: 'v8.0',
-					status: true,
-					cookie: true,
-					oauth: true,
-					xfbml: true
-				}, Users.init.facebook.options, options, {
-					appId: platformAppId
-				}));
-				Users.init.facebook.onInit.handle(Users, window.FB, [appId]);
+				if (window.FB) {
+					FB.init(Q.extend({
+						version: 'v8.0',
+						status: true,
+						cookie: true,
+						oauth: true,
+						xfbml: true
+					}, Users.init.facebook.options, options, {
+						appId: platformAppId
+					}));
+					Users.init.facebook.onInit.handle(Users, window.FB, [appId]);	
+				}
 			}
 			Users.init.facebook.completed[appId] = true;
 			Q.handle(callback);
@@ -246,52 +248,50 @@
 		var scriptsToLoad = [
 			'{{Users}}/js/web3/ethers-5.2.umd.min.js',
 			'{{Users}}/js/web3/evm-chains.min.js',
-			'{{Users}}/js/web3/web3.min.js',
-			'{{Users}}/js/web3/ethereumProvider.2.10.0.min.js' //'https://unpkg.com/@walletconnect/ethereum-provider'
+			'{{Users}}/js/web3/ethereumProvider.2.10.1.min.js' //'https://unpkg.com/@walletconnect/ethereum-provider'
 		];
 
 		Q.addScript(scriptsToLoad, function () {
 			Users.init.web3.complete = true;
 
 			if (Users.Web3.ethereumProvider || Q.getObject("ethereum.request", window)) {
-				callback && callback();
-			} else {
-				var projectId = Q.getObject(['web3', Users.communityId, 'providers', 'walletconnect', 'projectId'], Q.Users.apps);
-				if (!projectId) {
-					return;
-				}
-
-				var optionalChains = [];
-				if (typeof Users.Web3.chains === "object") {
-					Q.each(Object.keys(Users.Web3.chains), function (i, chainId) {
-						if (chainId === '0x1') {
-							return;
-						}
-
-						optionalChains.push(parseInt(chainId));
-					});
-				}
-				window['@walletconnect/ethereum-provider'].EthereumProvider.init({
-					projectId: projectId, // REQUIRED your projectId
-					showQrModal: true, // REQUIRED set to "true" to use @walletconnect/modal
-					qrModalOptions: { themeMode: "light" },
-					chains: [1], // REQUIRED chain ids
-					optionalChains: optionalChains,
-					methods: ["eth_sendTransaction", "personal_sign", "eth_sign", "wallet_switchEthereumChain", "wallet_addEthereumChain"],
-					//optionalMethods: ["eth_accounts","eth_requestAccounts","eth_sendRawTransaction","eth_sign","eth_signTransaction","eth_signTypedData","eth_signTypedData_v3","eth_signTypedData_v4","wallet_switchEthereumChain","wallet_addEthereumChain","wallet_getPermissions","wallet_requestPermissions","wallet_registerOnboarding","wallet_watchAsset","wallet_scanQRCode"],
-					events: ["chainChanged", "accountsChanged","disconnect","connect"],
-					optionalEvents: ["message"],
-					metadata: {
-						name: Q.info.app,
-						description: 'Demo Client as Wallet/Peer',
-						url: Q.info.baseUrl,
-						icons: [Q.url("{{baseUrl}}/img/icon/icon.png")]
-					},
-				}).then(function (ethereumProvider) {
-					Users.Web3.ethereumProvider = ethereumProvider;
-					callback && callback();
-				});
+				return callback && callback(null);
 			}
+			var projectId = Q.getObject(['web3', Users.communityId, 'providers', 'walletconnect', 'projectId'], Q.Users.apps);
+			if (!projectId) {
+				return callback && callback("Users.init.web3: Missing Q.Users.apps.web3." + Users.communityId + ".providers.walletconnect.projectId");
+			}
+
+			var optionalChains = [];
+			var rpcMap = {};
+			if (typeof Users.Web3.chains === "object") {
+				for (var chainId in Users.Web3.chains) {
+					var c = Web3.chains[chainId];
+					var r = c.rpcUrls;
+					optionalChains.push(parseInt(chainId));
+					rpcMap[chainId] = Q.isArrayLike(r) ? r[0]: 0;
+				};
+			}
+			window['@walletconnect/ethereum-provider'].EthereumProvider.init({
+				projectId: projectId, // REQUIRED your projectId
+				showQrModal: true, // REQUIRED set to "true" to use @walletconnect/modal
+				qrModalOptions: { themeMode: "light" },
+				optionalChains: optionalChains,
+				rpcMap: rpcMap,
+				methods: ["eth_sendTransaction", "personal_sign", "eth_sign", "wallet_switchEthereumChain", "wallet_addEthereumChain"],
+				//optionalMethods: ["eth_accounts","eth_requestAccounts","eth_sendRawTransaction","eth_sign","eth_signTransaction","eth_signTypedData","eth_signTypedData_v3","eth_signTypedData_v4","wallet_switchEthereumChain","wallet_addEthereumChain","wallet_getPermissions","wallet_requestPermissions","wallet_registerOnboarding","wallet_watchAsset","wallet_scanQRCode"],
+				events: ["chainChanged", "accountsChanged","disconnect","connect"],
+				optionalEvents: ["message"],
+				metadata: {
+					name: Q.info.app,
+					description: 'Web3 Client',
+					url: Q.info.baseUrl,
+					icons: [Q.url("{{baseUrl}}/img/icon/icon.png")]
+				},
+			}).then(function (ethereumProvider) {
+				Users.Web3.ethereumProvider = ethereumProvider;
+				callback && callback();
+			});
 		}, options);
 	};
 
@@ -1059,7 +1059,7 @@
 	 * @param {Number|false} [size=40] The last part after the slash, such as "50.png" or "50". Setting it to false skips appending "/size"
 	 * @return {String} the url
 	 */
-	Lp.iconUrl = function Users_User_iconUrl(size) {
+	Lp.iconUrl = function Users_Label_iconUrl(size) {
 		return Users.iconUrl(this.icon.interpolate({
 			userId: this.userId.splitId()
 		}), size);
@@ -1851,6 +1851,9 @@
 		onDisconnect: new Q.Event(),
         
         getExplorerLink: function(address, chainId, partPrepend = 'token/') {
+			if (!Q.Users.Web3.chains[chainId]) {
+				return null;
+			}
             if (Q.isEmpty(Q.Users.Web3.chains[chainId].blockExplorerUrls)) {
                 return address;
             }
@@ -2090,8 +2093,8 @@
 					host: location.host,
 					timestamp: Math.floor(Date.now() / 1000)
 				});
-				var w3 = new window.Web3(provider);
-				w3.eth.getAccounts().then(function (accounts) {
+				(new ethers.providers.Web3Provider(provider))
+				.listAccounts().then(function (accounts) {
 					var web3Address = Q.cookie('Q_Users_web3_address') || '';
 					if (web3Address && accounts.includes(web3Address)) {
 						var loginExpires = Q.cookie('Q_Users_web3_login_expires');
@@ -2168,8 +2171,8 @@
 			if (typeof ethereum === 'undefined') {
 				return console.log("MetaMask browser plugin not found");
 			}
-			var provider = new ethers.providers.Web3Provider(ethereum);
-			provider.listAccounts().then(function(accounts){
+			(new ethers.providers.Web3Provider(ethereum))
+			.listAccounts().then(function(accounts){
 				return Q.handle(callback, null, [accounts.length]);
 			}).catch(function (err) {
 				Q.alert(err.message);
@@ -2233,7 +2236,8 @@
 					return Q.handle(callback, null, [err]);
 				}
 
-				(new window.Web3(provider)).eth.getAccounts().then(function (accounts) {
+				(new ethers.providers.Web3Provider(provider))
+				.listAccounts().then(function (accounts) {
 					return Q.handle(callback, null, [null, accounts[0]]);
 				});
 			});
@@ -2250,8 +2254,9 @@
 				if (err) {
 					return Q.handle(callback, null, [err]);
 				}
-				(new window.Web3(provider)).eth.net.getId()
-				.then(function (chainId) {
+				(new ethers.providers.Web3Provider(provider))
+				.getNetwork().then(function (network) {
+					var chainId = network.chainId;
 					return Q.handle(callback, null, [null, '0x' + Number(chainId).toString(16)]);
 				});
 			});
@@ -2419,7 +2424,7 @@
 			Web3.withChain(options.chainId, function (provider) {
 				try {
 					var signer = new ethers.providers.Web3Provider(provider).getSigner();
-					Q.Users.Web3.getWalletAddress(function (err, address) {
+					Web3.getWalletAddress(function (err, address) {
 						signer.sendTransaction(Q.extend({}, options, {
 							from: address,
 							to: recipient,
@@ -2470,7 +2475,7 @@
 		 */
 		getContract: Q.promisify(Q.getter(
 		function(contractABIName, contractAddress, callback) {
-			Users.Web3.connect(function () {
+			Web3.connect(function () {
 				var chainId, address, readOnly;
 				if (Q.isPlainObject(contractAddress)) {
 					chainId = contractAddress.chainId;

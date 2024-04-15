@@ -91,7 +91,7 @@ Q.Tool.define("Q/columns", function(options) {
 		}, 100), tool);
 
 		if (Q.info.isAndroidStock) {
-			var w = Q.Pointer.windowWidth();
+			var w = Q.Visual.windowWidth();
 			$toolElement.parents().andSelf().each(function () {
 				$(this).data('Q/columns maxWidth', this.style.maxWidth)
 					.css('max-width', w);
@@ -617,7 +617,7 @@ Q.Tool.define("Q/columns", function(options) {
 			$div.css('position', 'absolute');
 			if (Q.info.isMobile) {
 				var h = expandBottom
-					? Q.Pointer.windowHeight() - containerRect.top - top
+					? Q.Visual.windowHeight() - containerRect.top - top
 					: state.container.clientHeight;
 				show.width = tool.element.clientWidth;
 				show.height = h;
@@ -933,9 +933,11 @@ Q.Tool.define("Q/columns", function(options) {
 		if (Q.info.isMobile) {
 			$te.css('top', top + 'px');
 			if (!state.fullscreen) {
-				$te.add($container)
-					.add($columns)
-					.height(Q.Pointer.windowHeight() - Q.fixedOffset('top') - Q.fixedOffset('bottom'));
+				var h = Q.Visual.windowHeight() - Q.fixedOffset('top') - Q.fixedOffset('bottom');
+				$te.add($container).height(h);
+				$columns.each(function () {
+					$(this).height(h - parseInt($(this).css('top')));
+				});
 			}
 		}
 		$columns.each(function () {
@@ -1226,10 +1228,10 @@ Q.invoke.handlers.unshift(function (options, methods) {
 	}
 });
 
-var currentColor;
+var initialColor;
 function _updateThemeColor(fromIndex, toIndex, duration) {
 	Q.addScript('{{Q}}/js/Color.js', function () {
-		currentColor = Q.Color.getWindowTheme();
+		initialColor = initialColor || Q.Color.getWindowTheme();
 		if (fromIndex < 0 || !$('html').hasClass('Q_columns_animationFX')) {
 			return;
 		}
@@ -1237,13 +1239,10 @@ function _updateThemeColor(fromIndex, toIndex, duration) {
 		var shades = [0, 0.36, 0.42, 0.47, 0.5];
 		fromIndex = Math.min(shades.length-1, fromIndex);
 		toIndex = Math.max(0, Math.min(shades.length-1, toIndex));
-		var fromColor = Q.Color.between(currentColor, black, shades[fromIndex]);
-		var toColor = Q.Color.between(currentColor, black, shades[toIndex]);
+		var fromColor = Q.Color.between(initialColor, black, shades[fromIndex]);
+		var toColor = Q.Color.between(initialColor, black, shades[toIndex]);
 		Q.Animation.play(function (x, y) {
 			Q.Color.setWindowTheme('#' + Q.Color.between(fromColor, toColor, y));
-			if (y === 1) {
-				currentColor = Q.Color.getWindowTheme();
-			}
 		}, duration);
 	});
 }

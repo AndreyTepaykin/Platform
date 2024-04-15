@@ -334,7 +334,7 @@ Sp.interpolate = function _String_prototype_interpolate(fields) {
 Sp.replaceAll = function _String_prototype_replaceAll(pairs) {
 	var result = this;
 	for (var k in pairs) {
-		result = result.replace(new RegExp(k, 'g'), pairs[k]);
+		result = result.split(k).join(pairs[k]);
 	}
 	return result;
 };
@@ -3668,7 +3668,6 @@ Q.onLayout = function (element) {
 }
 Q.onLayout.debounce = 100;
 Q.onLayout().set(function () {
-	_detectOrientation.apply(this, arguments);
 	Q.Masks.update();
 }, 'Q');
 
@@ -6138,18 +6137,21 @@ Q.Links = {
 	 * @return {String}
 	 */
 	telegram: function (to, text, options) {
+		var urlParams = [];
+		options = options || {};
 		if (!to) { //share URL with some users to select in telegram
-			var link = 'tg://msg_url';
-			if (options && options.url) {
-				link += 'url=' + options.url + '&';
+			var command = 'msg';
+			if (options.url) {
+				// NOTE: special characters won't work in text,
+				// better to keep options.url blank and place URL in text
+				urlParams.unshift('url=' + (options.url || ''));
+				command = 'msg_url';
 			}
 			if (text) {
-				link += '&text=' + encodeURIComponent(text);
+				urlParams.push('text=' + encodeURIComponent(text));
 			}
-			return link;
+			return 'tg://' + command + '?' + urlParams.join('&');
 		}
-		options = options || {};
-		var urlParams = [];
 		urlParams.push('to=' + to);
 		if (text) {
 			urlParams.push('text=' + encodeURIComponent(text));
@@ -7374,6 +7376,7 @@ Q.init = function _Q_init(options) {
 	Q.loadUrl.options.slotNames = Q.info.slotNames;
 	_startCachingWithServiceWorker();
 	_detectOrientation();
+	Q.addEventListener(root, 'orientationchange', _detectOrientation);
 	Q.addEventListener(root, 'unload', Q.onUnload.handle);
 	Q.addEventListener(root, 'online', Q.onOnline.handle);
 	Q.addEventListener(root, 'offline', Q.onOffline.handle);
@@ -7437,7 +7440,6 @@ Q.init = function _Q_init(options) {
 		}
 
 		function _ready() {
-			Q.handle(navigator.onLine ? Q.onOnline : Q.onOffline);
 			setTimeout(function () {
 				Q.ready();
 			}, 0);
@@ -8622,7 +8624,9 @@ Q.url = function _Q_url(what, fields, options) {
 	var what3, tail, info, cb;
 	if (fields) {
 		for (var k in fields) {
-			parts[1] = (parts[1] || "").queryField(k, fields[k]);
+			if (fields[k] !== undefined) {
+				parts[1] = (parts[1] || "").queryField(k, fields[k]);
+			}
 		}
 		what2 = parts[0] + (parts[1] ? '?' + parts[1] : '');
 	}
@@ -8719,7 +8723,10 @@ Q.interpolateUrl = function (url, additional) {
  * @returns {Array} interpolated values
  */
 Q.interpolateArray = function (start, end, fraction) {
-	fraction = parseFloat(fraction) || 0.5;
+	fraction = parseFloat(fraction);
+	if (fraction === undefined) {
+		fraction = 0.5;
+	}
 	var result = [];
 	for (var i=0; i<start.length; ++i) {
 		result.push(start[i] + fraction * (end[i] - start[i]));
@@ -8795,6 +8802,7 @@ Q.ajaxExtend = function _Q_ajaxExtend(what, slotNames, options) {
 			: (options.idPrefixes && options.idPrefixes.join(',')))
 		: '';
 	var timestamp = Date.now();
+	var formFactor = Q.info.forceFormFactor;
 	var ajax = options.iframe ? 'iframe' : 'json';
 	if (typeof what == 'string') {
 		var p = what.split('#');
@@ -8832,6 +8840,9 @@ Q.ajaxExtend = function _Q_ajaxExtend(what, slotNames, options) {
 			what2 += encodeURI('&Q.nonce=') + encodeURIComponent(Q.nonce);
 		}
 		what2 = (p[1] ? what2 + '#' + p[1] : what2);
+		if (formFactor) {
+			what2 += '&Q.formFactor=' + formFactor; // propagate it
+		}
 	} else {
 		// assume it's an object
 		var what2 = {};
@@ -8858,6 +8869,9 @@ Q.ajaxExtend = function _Q_ajaxExtend(what, slotNames, options) {
 		}
 		if ('nonce' in Q) {
 			what2["Q.nonce"] = Q.nonce;
+		}
+		if (formFactor) {
+			what2["Q.formFactor"] = formFactor; // propagate it
 		}
 	}
 	return what2;
@@ -9546,7 +9560,8 @@ Q.formPost.counter = 0;
  */
 Q.updateUrls = function(callback) {
 	var timestamp, earliest, url, json, ut = Q.cookie('Q_ut');
-	if (!ut) {
+	var lut = localStorage.getItem(Q.updateUrls.timestampKey);
+	if (ut && !lut) {
 		Q.request('Q/urls/urls/latest.json', [], function (err, result) {
 			Q.updateUrls.urls = result;
 			json = JSON.stringify(Q.updateUrls.urls);
@@ -9560,7 +9575,7 @@ Q.updateUrls = function(callback) {
 			}
 			Q.handle(callback, null, [result, timestamp]);
 		}, {extend: false, cacheBust: 1000, skipNonce: true});
-	} else if (ut !== localStorage.getItem(Q.updateUrls.timestampKey)) {
+	} else if (ut && ut !== lut) {
 		url = 'Q/urls/diffs/' + ut + '.json';
 		Q.request(url, [], function (err, result) {
 			if (err) {
@@ -9591,7 +9606,7 @@ Q.updateUrls = function(callback) {
 			}
 		}, { extend: false, cacheBust: 1000, skipNonce: true });
 	} else {
-		Q.handle(callback, null, [{}, timestamp]);
+		Q.handle(callback, null, [{}, null]);
 	}
 };
 
@@ -9610,6 +9625,7 @@ Q.updateUrls.urls = JSON.parse(localStorage.getItem(Q.updateUrls.urlsKey) || "{}
  *  Optional. A hash of options, including options for Q.url() and these:
  * @param {String} [options.type='text/javascript'] Type attribute of script tag
  * @param {Boolean} [options.duplicate] if true, adds script even if one with that src was already loaded
+ * @param {Boolean} [options.querystringMatters] if true, then different querystring is considered as different, even if duplicate option is false
  * @param {Boolean} [options.skipIntegrity] if true, skips adding "integrity" attribute even if one can be calculated
  * @param {Boolean} [options.onError] optional function that may be called in newer browsers if the script fails to load. Its this object is the script tag.
  * @param {Boolean} [options.ignoreLoadingErrors] If true, ignores any errors in loading scripts.
@@ -9722,7 +9738,7 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 	var src2 = src.split('?')[0];
 	
 	if (!o.duplicate) {
-		if (Q.addScript.loaded[src2]) {
+		if (!o.querystringMatters && Q.addScript.loaded[src2]) {
 			_onload();
 			return o.returnAll ? null : false;
 		}
@@ -9738,7 +9754,10 @@ Q.addScript = function _Q_addScript(src, onload, options) {
 		for (i=0; i<scripts.length; ++i) {
 			script = scripts[i];
 			var s = script.getAttribute('src');
-			if (!s || s.split('?')[0] !== src2) {
+			if (!s || (o.querystringMatters
+				? s !== src
+				: s.split('?')[0] !== src2
+			)) {
 				continue;
 			}
 			// move the element to the right container if necessary
@@ -10190,7 +10209,7 @@ function _startCachingWithServiceWorker() {
 				if (pathPrefix) {
 					var prefixes = ['@import ', '@import "', "@import '", 'url(', 'url("', "url('"];
 					prefixes.forEach(function (prefix) {
-						content = content.replace(prefix + pathPrefix, prefix);
+						content = content.split(prefix + pathPrefix).join(prefix);
 					});
 				}
 				items.push({
@@ -12165,6 +12184,7 @@ function _connectSocketNS(ns, url, callback, earlyCallback, forceNew) {
 			});
 			// remember actual socket - for disconnecting
 			var socket = qs.socket;
+			_connecting(socket);
 			
 			Q.Socket.onConnect(ns, url).add(_Q_Socket_register, 'Q');
 			_ioOn(socket, 'connect', _connected);
@@ -12179,7 +12199,23 @@ function _connectSocketNS(ns, url, callback, earlyCallback, forceNew) {
 			});
 		}
 		if (!qs.connected && qs.socket) {
-			qs.socket.connect(); // connect it again
+			var socket = qs.socket;
+			if (!socket.connecting) {
+				socket.connect(); // connect it again
+				_connecting(socket);
+			}
+		}
+		function _connecting(socket) {
+			socket.connecting = true;
+			socket.on('connect', _noLongerConnecting);
+			socket.on('connect_error', _noLongerConnecting);
+			socket.on('disconnect', _noLongerConnecting);
+			function _noLongerConnecting () {
+				socket.connecting = false;
+				socket.off('connect', _noLongerConnecting);
+				socket.off('connect_error', _noLongerConnecting);
+				socket.off('disconnect', _noLongerConnecting);
+			}
 		}
 
 		// if (!qs.socket.io.connected && Q.isEmpty(qs.socket.io.connecting)) {
@@ -12738,10 +12774,11 @@ Q.jQueryPluginPlugin = function _Q_jQueryPluginPlugin() {
 		}
 		var results = {};
 		Q.each(pluginNames, function _jQuery_plugin_loaded(i, pluginName) {
+			var parts = pluginName.split('/');
 			var pn = Q.normalize.memoized(pluginName);
 			results[pn] = pluginName;
 			if ($.fn[pn]) return;
-			var src = ($.fn.plugin[pn] || 'Q/plugins/jQuery/'+pn+'.js');
+			var src = ($.fn.plugin[pn] || 'Q/plugins/' + parts[0] + '/js/fn'+parts[1]+'.js');
 			if (typeof src === 'string') {
 				srcs.push(src);
 			}
@@ -12979,6 +13016,7 @@ var isTablet = navigator.userAgent.match(/tablet|ipad/i)
 Q.info = {
 	useTouchEvents: useTouchEvents,
 	hasNoMouse: hasNoMouse,
+	forceFormFactor: location.search.queryField("Q.formFactor"),
 	isTouchscreen: isTouchscreen,
 	isTablet: isTablet,
 	isWebView: detected.isWebView,

@@ -328,7 +328,7 @@ html.Streams_stream .Streams_question_preview_tool .Streams_preview_title {
 	text-align: left;
 }
 .Streams_answer_preview_tool label span {
-	margin-left: 5px;
+	margin-left: 10px;
 }
 .Streams_answer_preview_tool[data-participants=false] .Streams_answer_participants {
 	display: none;
@@ -362,10 +362,10 @@ html.Streams_stream .Streams_question_preview_tool .Streams_preview_title {
 	-webkit-transform: scale(2); /* Safari and Chrome */
 	-o-transform: scale(2); /* Opera */
 	transform: scale(2);
+	margin-right: 5px;
 }
 .Streams_answer_preview_tool input[type=text] {
 	width: calc(100% - 80px);
-	height: 37px;
 	vertical-align: middle;
 }
 
@@ -383,7 +383,8 @@ html.Streams_stream .Streams_question_preview_tool .Streams_preview_title {
 }
 .Streams_dialog_answer_composer form select,
 .Streams_dialog_answer_composer form select option {
-	font-size: 110%;
+	font-size: 80%;
+	font-weight: bold;
 }
 .Streams_dialog_answer_composer .Q_dialog_content {
 	white-space: nowrap;
@@ -391,6 +392,10 @@ html.Streams_stream .Streams_question_preview_tool .Streams_preview_title {
 }
 .Streams_dialog_answer_composer .Q_dialog_content * {
 	vertical-align: middle;
+}
+.Streams_dialog_answer_composer form {
+	display: flex;
+	gap: 5px;
 }
 /* </Streams_question_preview> */
 

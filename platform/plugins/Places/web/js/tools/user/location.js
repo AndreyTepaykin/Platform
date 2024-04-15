@@ -91,18 +91,19 @@ Q.Tool.define("Places/user/location", function (options) {
 				_showMap.apply(this, params.info);
 			});
 	
-			Streams.Stream
-			.onRefresh(publisherId, streamName)
-			.set(function () {
-				var meters = parseFloat(this.getAttribute('meters')) || null;
-				var latitude = parseFloat(this.getAttribute('latitude')) || null;
-				var longitude = parseFloat(this.getAttribute('longitude')) || null;
+			Streams.Stream.onAttribute(publisherId, streamName, "")
+			.set(_update, tool);
+
+			function _update (attributes, updated, cleared, onlyChangedFields) {
+				var meters = parseFloat((updated && updated.meters) || this.getAttribute('meters')) || null;
+				var latitude = parseFloat((updated && updated.latitude) || this.getAttribute('latitude')) || null;
+				var longitude = parseFloat((updated && updated.longitude) || this.getAttribute('longitude')) || null;
 				if (meters) {
 					tool.$('.Places_user_location_meters').val(meters);
 				};
 				pipe.fill('info')(latitude, longitude, meters, state.onSet.handle);
 				state.stream = this; // in case it was missing before
-			});
+			}
 	
 			Streams.retainWith(tool)
 			.get(publisherId, streamName, function (err) {
@@ -174,7 +175,10 @@ Q.Tool.define("Places/user/location", function (options) {
 				}, state.map.delay);
 		
 				if (stream && Q.getter.usingCached) {
-					stream.refresh();
+					stream.refresh(function () {
+						Streams.Stream.onRefresh(publisherId, streamName)
+						.set(_update, tool);
+					});
 				}
 			});
 	
@@ -302,7 +306,7 @@ Q.Tool.define("Places/user/location", function (options) {
 						Q.handle(callback, tool, [latitude, longitude, meters]);
 					}
 				}, { 
-					messages: 1,
+					messages: true,
 					evenIfNotRetained: true
 				});
 			}, {
