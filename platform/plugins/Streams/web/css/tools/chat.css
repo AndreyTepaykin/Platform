@@ -28,6 +28,10 @@
 	height: 33px;
 }
 
+.Streams_chat_message_content .Streams_image_preview_tool img {
+	width: 100% !important;
+}
+
 .Streams_chat_message_content .Streams_question_preview_tool + .Streams_related_tool {
 	margin-left: 0;
 }
@@ -92,18 +96,20 @@
 	line-height: 30px;
 	vertical-align: middle;
 	background-color: #cc5555;
-	top: 10px; 
 	right: 10px;
+	top: 50%; 
+	transform: translate(0, -50%);
 }
 .Streams_chat_preview_tool[data-participants] .Streams_chat_unseen {
 	left: auto;
 	top: auto;
 	right: -5px;
 	bottom: -5px;
-	height: 25px;
-	min-width: 25px;
-	line-height: 25px;
+	height: 30px;
+	min-width: 30px;
+	line-height: 30px;
 	font-size: 14px;
+	transform: none;
 }
 .Streams_chat_preview_tool .Streams_chat_unseen.Streams_preview_nonzero {
 	display: block;

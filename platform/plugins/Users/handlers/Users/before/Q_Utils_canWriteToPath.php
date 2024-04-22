@@ -70,13 +70,13 @@ function Users_before_Q_Utils_canWriteToPath($params, &$result)
 				$subpath .= DS;
 			}
 			$paths[] = APP_DIR.$subpath;
-			foreach (Q::plugins() as $plugin) {
-				$c = strtoupper($plugin).'_PLUGIN_DIR';
-				if (defined($c)) {
-					$paths[] = constant($c).$subpath;
-				}
-			}
-			$paths[] = Q_DIR.$subpath;
+			// foreach (Q::plugins() as $plugin) {
+			// 	$c = strtoupper($plugin).'_PLUGIN_DIR';
+			// 	if (defined($c)) {
+			// 		$paths[] = constant($c).$subpath;
+			// 	}
+			// }
+			// $paths[] = Q_DIR.$subpath;
 		}
 	}
 
@@ -113,9 +113,6 @@ function Users_before_Q_Utils_canWriteToPath($params, &$result)
 				return;
 			}
 		}
-	}
-	if ($throwIfNotWritable) {
-		throw new Q_Exception_CantWriteToPath();
 	}
 	$result = false;
 }

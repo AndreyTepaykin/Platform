@@ -2,7 +2,7 @@
 	"Q": {
 		"pluginInfo": {
 			"Websites": {
-				"version": "1.0.6",
+				"version": "1.0.7",
 				"compatible": "0.8",
 				"requires": {"Streams": "1.0"},
 				"connections": ["Users", "Streams", "Websites"]
@@ -59,25 +59,23 @@
 				}
 			}
 		},
-		"communities": {
-			"roles": {
-				"Users/owners": {
-					"canGrant": ["Websites/admins"],
-					"canRevoke": ["Websites/admins"],
-					"canSee": ["Websites/admins"]
-				},
-				"Users/admins": {
-					"canGrant": ["Websites/admins"],
-					"canRevoke": ["Websites/admins"],
-					"canSee": ["Websites/admins"]
-				},
-				"Websites/admins": {
-					"title": "Websites Admin",
-					"icon": "{{baseUrl}}/Q/plugins/Websites/img/icons/Websites/roles/admins",
-					"canGrant": ["Websites/admins"],
-					"canRevoke": ["Websites/admins"],
-					"canSee": ["Users/owners", "Users/admins", "Users/members", "Users/guests", "Websites/admins"]
-				}
+		"roles": {
+			"Users/owners": {
+				"canGrant": ["Websites/admins"],
+				"canRevoke": ["Websites/admins"],
+				"canSee": ["Users/owners", "Users/admins", "Users/members", "Users/guests", "Websites/admins"]
+			},
+			"Users/admins": {
+				"canGrant": ["Websites/admins"],
+				"canRevoke": ["Websites/admins"],
+				"canSee": ["Users/owners", "Users/admins", "Users/members", "Users/guests", "Websites/admins"]
+			},
+			"Websites/admins": {
+				"title": "Websites Admins",
+				"icon": "{{baseUrl}}/Q/plugins/Websites/img/icons/Websites/labels/admins",
+				"canGrant": ["Websites/admins"],
+				"canRevoke": ["Websites/admins"],
+				"canSee": ["Users/owners", "Users/admins", "Users/members", "Users/guests", "Websites/admins"]
 			}
 		}
 	},

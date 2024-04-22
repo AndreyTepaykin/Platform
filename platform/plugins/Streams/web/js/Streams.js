@@ -3166,9 +3166,13 @@ Sp.actionUrl = function _Stream_prototype_actionUrl (what) {
  * @return {Boolean}
  */
 Sp.inviteIsAllowed = function() {
-	var priv = this.getAttribute(['Streams', 'private']);
+	var priv = this.getAttribute('Streams/private');
 	if (priv === undefined) {
 		priv = this.getAttribute('private');
+	}
+	if (priv == undefined) {
+		var attr = this.getAttribute('Streams');
+		priv = attr && attr.private;
 	}
 	return !priv || (priv instanceof Array && priv.indexOf('invite') >= 0);
 };
