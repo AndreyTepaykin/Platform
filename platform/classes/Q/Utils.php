@@ -1170,6 +1170,8 @@ class Q_Utils
 				CURLOPT_CONNECTTIMEOUT => $timeout,	  // timeout on connect
 				CURLOPT_TIMEOUT		=> $timeout,	  // timeout on response
 				CURLOPT_MAXREDIRS	  => 10,	   // stop after 10 redirects
+					CURLOPT_SSL_VERIFYPEER => false,
+					CURLOPT_SSL_VERIFYHOST => false
 			);
 			curl_setopt_array($ch, $curl_opts);
 			switch ($method) {
