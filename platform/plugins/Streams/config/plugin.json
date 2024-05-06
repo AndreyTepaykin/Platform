@@ -155,6 +155,9 @@
 		"icon": {
 			"labels": "labels/default",
 			"canSetInitialCustom": ["Streams/invitedMe"]
+		},
+		"socket": {
+			"permissions": ["s"]
 		}
 	},
 	"Streams": {
@@ -166,9 +169,6 @@
 			"Streams/user/lastName": true,
 			"Streams/user/username": true,
 			"Streams/user/icon": true
-		},
-		"public": {
-			"permissions": ["Streams/observe"]
 		},
 		"types": {
 			"*": {
