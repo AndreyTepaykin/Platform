@@ -558,7 +558,7 @@ var priv = {
     // until things settle down on the screen
     _simulatePosting: function priv_simulatePosting(messages, extras) {
         Q.each(messages, function () {
-            Q.Users.Socket.onEvent('Streams/post').handle(this, extras);
+            Q.Socket.onEvent('Streams/post').handle(this, extras);
         }, {ascending: true, numeric: true});
     }
 
@@ -733,7 +733,7 @@ function _connectSockets(refresh) {
 			return;
 		}
 		for (var i=0, l = n.length; i < l; ++i) {
-			Users.Socket.connect(n[i], function (qs, ns, url) {
+			Q.Socket.connect('/Q', n[i], function (err, qs, ns, url) {
 				priv._connectedNodes[url] = qs;
 			});
 			priv._connectedNodes[n[i]] = true;
@@ -2208,7 +2208,7 @@ function _disconnectStreamNode(publisherId, streamName, ps) {
 	}
 	// we can disconnect the node
 	delete(priv._retainedNodes[nodeUrl]);
-	var socket = Users.Socket.get(nodeUrl);
+	var socket = Q.Socket.get(nodeUrl);
 	socket && socket.disconnect();
 	return true;
 }
@@ -2608,7 +2608,7 @@ Sp.retain = function _Stream_prototype_retain (key, options) {
 			Q.setObject([nodeUrl, ps], true, priv._retainedNodes);	
 		} else if (!options.dontObserve) {
 			// If the socket already connected, this will just call the callback:
-			Users.Socket.connect(nodeUrl, function () {
+			Q.Socket.connect('/Q', nodeUrl, function () {
 				if (!participating && !options.dontObserve) {
 					stream.observe(function () {
 						Q.setObject([nodeUrl, ps], true, priv._retainedNodes);
@@ -3570,7 +3570,7 @@ Message.wait = function _Streams_Message_wait (publisherId, streamName, ordinal,
 		publisherId: publisherId,
 		streamName: streamName
 	});
-	var socket = Q.Users.Socket.get(nodeUrl);
+	var socket = Q.Socket.get('Q', nodeUrl);
 	if (ordinal - o.maxBeforeRefresh > latest) {
 
 	} else if (!socket || ordinal - o.max > latest) {
@@ -4702,12 +4702,12 @@ Q.onInit.add(function _Streams_onInit() {
 	// set up invite complete dialog
 	Q.Page.onLoad('').add(_Streams_onInvited, "Streams.invited");
 
-	Users.Socket.onEvent('Streams/debug').set(function _Streams_debug_handler (msg) {
+	Q.Socket.onEvent('Streams/debug').set(function _Streams_debug_handler (msg) {
 		console.log('DEBUG:', msg);
 	}, 'Streams');
 
 	// if stream was edited or removed - invalidate cache
-	Users.Socket.onEvent('Streams/remove').set(function _Streams_remove_handler (stream) {
+	Q.Socket.onEvent('Streams/remove').set(function _Streams_remove_handler (stream) {
 		Streams.get.cache.each([msg.publisherId, msg.streamName],
 			function (k, v) {
 				this.remove(k);
@@ -4715,25 +4715,25 @@ Q.onInit.add(function _Streams_onInit() {
 			});
 	}, 'Streams');
 
-	Users.Socket.onEvent('Streams/join').set(function _Streams_join_handler (p) {
+	Q.Socket.onEvent('Streams/join').set(function _Streams_join_handler (p) {
 		// 'join' event contains new participant.
-		console.log('Users.Socket.onEvent("Streams/join")', p);
+		console.log('Q.Socket.onEvent("Streams/join")', p);
 		Participant.get.cache.set(
 			[p.publisherId, p.streamName, p.userId],
 			0, p, [null, p]
 		);
 	}, 'Streams');
 
-	Users.Socket.onEvent('Streams/leave').set(function (p) {
+	Q.Socket.onEvent('Streams/leave').set(function (p) {
 		// 'leave' event contains removed participant.
-		console.log('Users.Socket.onEvent("Streams/leave")', p);
+		console.log('Q.Socket.onEvent("Streams/leave")', p);
 		Participant.get.cache.set(
 			[p.publisherId, p.streamName, p.userId],
 			0, p, [null, p]
 		);
 	});
 	
-	Users.Socket.onEvent('Streams/ephemeral').set(function (ephemeral, extras) {
+	Q.Socket.onEvent('Streams/ephemeral').set(function (ephemeral, extras) {
 		var event = Q.getObject([extras.streamType, ephemeral.type], priv._ephemeralHandlers);
 		var params = [ephemeral, extras];
 		Q.handle(event, Streams, params);
@@ -4758,10 +4758,10 @@ Q.onInit.add(function _Streams_onInit() {
 		});
 	});
 
-	Users.Socket.onEvent('Streams/post')
+	Q.Socket.onEvent('Streams/post')
 	.set(function _Streams_post_handler (msg, extras) {
 		if (!msg) {
-			throw new Q.Error("Q.Users.Socket.onEvent('Streams/post') msg is empty");
+			throw new Q.Error("Q.Socket.onEvent('Streams/post') msg is empty");
 		}
 		var latest = Message.latestOrdinal(msg.publisherId, msg.streamName);
 		if (latest && parseInt(msg.ordinal) <= latest) {
@@ -4791,7 +4791,7 @@ Q.onInit.add(function _Streams_onInit() {
 			// then you can skip processing this message.
 			
 			// Otherwise, we have a new message posted - update cache
-			console.log('Users.Socket.onEvent("Streams/post")', msg);
+			console.log('Q.Socket.onEvent("Streams/post")', msg);
 			var message = (msg instanceof Message)
 				? msg
 				: Message.construct(msg, true);
