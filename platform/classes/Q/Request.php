@@ -295,12 +295,15 @@ class Q_Request
 	}
 	
 	/**
+	 * Use this method to check whether a file is requested
 	 * @method filename
 	 * @static
 	 * @return {string|false} Returns false if extension doesn't match.
 	 *   Otherwise returns full filename of potentially requested file.
-	 *   This tends to return a filename of an existing file, but if none
-	 *   exists, it would iterate aliases and return the first potential filename.
+	 *   It first iterates any aliases in "Q"/"aliases" config, and returns
+	 *   the first file it finds. Otherwise it returns the filename under
+	 *   Q_Request::documentRoot(), whether or not it actually exists
+	 *   on the file system. You can use file_exists() or realpath().
 	 */
 	static function filename()
 	{
@@ -318,7 +321,7 @@ class Q_Request
 		if (!in_array($ext, $extensions)) {
 			return false;
 		}
-		$filename = Q_Uri::filenameFromUrl($url);
+		return Q_Uri::filenameFromUrl($url);
 	}
 	
 	/**

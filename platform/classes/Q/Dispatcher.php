@@ -191,19 +191,8 @@ class Q_Dispatcher
 			}
 		}
 
-		Q_Request::handleInput();
-		
-		Q_Text::setLanguageFromRequest();
-
-		// if the Q service worker is requested, generate and serve it
-		if (Q_Request::isServiceWorker()) {
-			Q::event('Q/serviceWorker/response');
-			return true;
-		}
-		Q_Request::mergeCookieJS();
-
 		// if file or dir is requested, try to serve it
-		$served = false;
+		$served = null;
 		$skip = Q_Config::get('Q', 'dispatcherSkipFilename', false);
 		$filename = $skip ? false : Q_Request::filename();
 		if ($filename) {
@@ -228,11 +217,23 @@ class Q_Dispatcher
 			}
 		}
 
-		// if response was served, then return
-		if ($served) {
+		// if response or 404 was served, then return
+		if (isset($served)) {
 			self::result($dir_was_served ? "Dir served" : "File served");
 			return true;
 		}
+
+		Q_Request::handleInput();
+		
+		Q_Text::setLanguageFromRequest();
+
+		// if the Q service worker is requested, generate and serve it
+		if (Q_Request::isServiceWorker()) {
+			Q::event('Q/serviceWorker/response');
+			self::result("Service Worker served");
+			return true;
+		}
+		Q_Request::mergeCookieJS();
 
 		// This loop is for forwarding
 		$max_forwards = Q_Config::get('Q', 'maxForwards', 10);

@@ -12,12 +12,10 @@ function Users_before_Q_responseExtras()
 		'Q.plugins.Users.authenticate.expires',
 		Q_Config::get('Users', 'authenticate', 'expires', null)
 	);
+	$communityId = Users::currentCommunityId(true);
 	$types = array('Users/icon', 'Users/cover', 'Users/labels');
 	foreach ($types as $type) {
-		if ($sizes = Q_Image::getSizes($type, $maxStretch)) {
-			Q_Response::setScriptData("Q.image.sizes.$type", $sizes);
-			Q_Response::setScriptData("Q.image.maxStretch.$type", $maxStretch);
-		}
+		Q_Response::setImageSizes($type);
 	}
 	$requireLogin = Q_Config::get('Users', 'requireLogin', array());
 	$rl_array = array();
@@ -43,7 +41,7 @@ function Users_before_Q_responseExtras()
         
         // get current community address
         $ret = Users_ExternalTo::select()->where(array(
-            'userId' => Users::currentCommunityId(true),
+            'userId' => $communityId,
             'platform' => 'web3',
             //'appId' => array($appId, $secondAppId)
         ))->fetchDbRows();
@@ -58,22 +56,8 @@ function Users_before_Q_responseExtras()
 	Q_Response::setScriptData('Q.plugins.Users.communityName', Users::communityName());
 	Q_Response::setScriptData('Q.plugins.Users.communitySuffix', Users::communitySuffix());
 	Q_Response::setScriptData('Q.plugins.Users.currentCommunityId', Users::currentCommunityId(true));
-	if ($sizes = Q_Image::getSizes('Users/icon', $maxStretch)) {
-		Q_Response::setScriptData('Q.plugins.Users.icon.sizes', $sizes);
-		Q_Response::setScriptData('Q.plugins.Users.icon.maxStretch', $maxStretch);
-	}
-	$defaultSize = Q_Image::getDefaultSize('Users/icon');
-	Q_Response::setScriptData('Q.plugins.Users.icon.defaultSize', $defaultSize);
-	try {
-		if ($sizes = Q_Image::getSizes('Users/cover', $maxStretch)) {
-			Q_Response::setScriptData('Q.plugins.Users.cover.sizes', $sizes);
-			Q_Response::setScriptData('Q.plugins.Users.cover.maxStretch', $maxStretch);
-		}
-		$defaultSize = Q_Image::getDefaultSize('Users/cover');
-		Q_Response::setScriptData('Q.plugins.Users.cover.defaultSize', $defaultSize);
-	} catch (Exception $e) {
-		
-	}
+	Q_Response::setImageSizes('Users/icon');
+	Q_Response::setImageSizes('Users/cover');
 	Q_Response::addStylesheet("{{Users}}/css/Users.css", 'Users');
 	$platforms = array(Q_Request::platform());
 	foreach (Q_Config::get('Users', 'apps', 'export', array()) as $platform) {
@@ -116,7 +100,7 @@ function Users_before_Q_responseExtras()
 	}
 
 	// fetch labels info
-	Q_Response::setScriptData("Q.plugins.Users.labels", Users_Label::getLabels());
+	Q_Response::setScriptData("Q.plugins.Users.labels", Users_Label::getLabelsInfo($communityId));
 	
 	
 	Q_Response::setScriptData('Q.Users.web3.contracts', Q_Config::get("Users", "web3", "contracts", "R1",  array()));

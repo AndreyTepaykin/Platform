@@ -434,21 +434,21 @@ abstract class Streams extends Base_Streams
 				'streamName' => $namesToFetch,
 				'userId' => $asUserId
 			))->fetchDbRows(null, '', 'streamName');
-
+			foreach ($allRetrieved as $s) {
+				$participant = Q::ifset($prows, $s->name, null);
+				$s->set('participant', $participant);
+			}
+		}
+		if (!empty($options['withSubscriptionRules']) and $asUserId) {
 			$ssr_rows = Streams_SubscriptionRule::select()->where(array(
 				'publisherId' => $publisherId,
 				'streamName' => $namesToFetch,
 				'ofUserId' => $asUserId
-			))->fetchDbRows(null, '', 'streamName');
-
+			))->orderBy('ordinal')
+			->fetchDbRows(null, '', 'streamName');
 			foreach ($allRetrieved as $s) {
-				$participant = Q::ifset($prows, $s->name, null);
-
-				if (gettype($participant) == 'object' && !empty($participant)) {
-					$participant->subscriptionRules = Q::ifset($ssr_rows, $s->name, null);
-				}
-
-				$s->set('participant', $participant);
+				$subscriptionRules = Q::ifset($ssr_rows, $s->name, null);
+				$s->set('subscriptionRules', $subscriptionRules);
 			}
 		}
 
@@ -3995,7 +3995,7 @@ abstract class Streams extends Base_Streams
 			$invite = new Streams_Invite();
 			if (is_array($who['token'])) {
 				Q_Valid::requireFields(array('token', 'Q.sig'), $who['token'], true);
-				if (Q_Utils::sign($who['token']) !== $who['token']) {
+				if (!Q_Valid::signature($who['token'])) {
 					throw new Q_Exception_InvalidInput(array('source' => 'token'));
 				}
 				$invite->token = $who['token']['token'];
@@ -4350,10 +4350,10 @@ abstract class Streams extends Base_Streams
 	/**
 	 * Get the url of the stream's icon
 	 * @param {object} [$stream] Stream row or Streams_Stream object
-	 * @param {string|false} [$basename=null] The last part after the slash, such as "50.png" or "50". Setting it to false skips appending "/basename"
+	 * @param {string|false} [$size=null] The last part after the slash, such as "50.png" or "50". Setting it to false skips appending "/basename"
 	 * @return {string} The stream's icon url
 	 */
-	static function iconUrl($stream, $basename = null)
+	static function iconUrl($stream, $size = null)
 	{
 		if (empty($stream->icon)) return '';
 		$url = Q_Uri::interpolateUrl($stream->icon, array(
@@ -4364,14 +4364,19 @@ abstract class Streams extends Base_Streams
 			: "{{Streams}}/img/icons/$url";
 		$baseUrl = Q_Request::baseUrl();
 		$themedUrl = Q_Html::themedUrl($url);
-		if ($basename !== false && Q::startsWith($themedUrl, $baseUrl) && !preg_match("/\.\w{2,4}$/", $themedUrl)) {
-			if ($basename === null or $basename === true) {
-				$basename = '40';
+		if ($size !== false
+		&& Q::startsWith($themedUrl, $baseUrl)
+		&& !preg_match("/\w+\/\w+\.\w+$/", $themedUrl)) {
+			if ($size === null or $size === true) {
+				$size = '40';
 			}
-			if (strpos($basename, '.') === false) {
-				$basename .= '.png';
+			if ($size === 'largestWidth' or $size === 'largestHeight') {
+				$size = Q_Image::largestSize('Streams/image', $size === 'largestHeight');
 			}
-			$url .= "/$basename";
+			if (strpos($size, '.') === false) {
+				$size .= '.png';
+			}
+			$url .= "/$size";
 			return Q_Html::themedUrl($url);
 		}
 		return $themedUrl;

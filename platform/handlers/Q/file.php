@@ -1,11 +1,17 @@
 <?php
 
-function Q_file($params)
+function Q_file($params, &$result)
 {
 	$filename = Q::ifset($params, 'filename', Q_Request::filename());
 	$parts = explode('.', $filename);
 	$ext = end($parts);
 	switch ($ext) {
+		case 'txt': 
+			header ("Context-type: text/plain");
+			break;
+		case 'xml': 
+			header ("Context-type: text/$ext");
+			break;
 		case 'png':
 		case 'jpeg':
 		case 'gif':
@@ -47,7 +53,7 @@ function Q_file($params)
 	}
 	if (false === Q::event("Q/file/authorize", compact(
 		'filename', 'ext',
-	), 'before') {
+	), 'before')) {
 		header("HTTP/1.0 403 Forbidden");
 		$filename = Q_PLUGIN_WEB_DIR.DS.'img'.DS.'403'.DS."403.$ext";
 		readfile($filename);
@@ -55,5 +61,5 @@ function Q_file($params)
 	}
 	// if no hooks returned false, then just output the file to the client
 	readfile($filename);
-	return true;
+	$result = true;
 }
