@@ -187,6 +187,11 @@
 						"templateName": "Streams/invite"
 					}
 				},
+				"restricted": {
+					"attributes": {
+						"prefixes": ["Streams/", "Users/"]
+					}
+				},
 				"invited": {
 					"dialog": {
 						"title": "You've been invited",
