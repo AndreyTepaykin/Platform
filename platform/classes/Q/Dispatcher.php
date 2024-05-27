@@ -155,46 +155,15 @@ class Q_Dispatcher
 		}
 		$route = self::$uri->route();
 
-		$sessionId = Q_Session::requestedId();
-		if (!Q_Request::isAjax()
-		and empty($_SERVER['HTTP_X_QBIX_REQUEST'])) {
-			$redirectKey = '';
-			if (empty($sessionId)) {
-				$redirectKey = 'landing';
-			} else if ($prefix = Q_Config::get(
-				'Q', 'session', 'id', 'prefixes', 'authenticated', null
-			) and Q::startsWith($sessionId, $prefix)) {
-				$redirectKey = 'authenticated';
-			}
-			if ($redirectSuffix = Q_Config::get(
-				'Q', 'static', 'redirect', $redirectKey, null
-			) and $generate = Q_Config::get(
-				'Q', 'static', 'generate', $redirectSuffix, 'routes', $route, null
-			)) {
-				$found = true;
-				foreach (self::$uri->toArray() as $k => $v) {
-					if (!isset($generate[$k]) or !in_array($v, $generate[$k])) {
-						if (!$k) {
-							continue; // this is only used to define extra conditions for routes
-						}
-						$found = false;
-						break;
-					}
-				}
-				if ($found) {
-					Q_Session::start(); // set session cookie
-					$redirectUrl = Q_Request::url() . $redirectSuffix;
-					header("Location: $redirectUrl");
-					self::response();
-					return true;
-				}
-			}
-		}
-
 		// if file or dir is requested, try to serve it
 		$served = null;
+		$filename = null;
 		$skip = Q_Config::get('Q', 'dispatcherSkipFilename', false);
-		$filename = $skip ? false : Q_Request::filename();
+		$parts = $route ? explode('/', $route) : array();
+		if (!$skip and !str_contains(end($parts), '.')) {
+			// route didn't have a dot in it, try to serve a file
+			$filename = Q_Request::filename(true);
+		}
 		if ($filename) {
 			if (is_dir($filename)) {
 				/**
@@ -219,7 +188,9 @@ class Q_Dispatcher
 
 		// if response or 404 was served, then return
 		if (isset($served)) {
+			self::$uri = null;
 			self::result($dir_was_served ? "Dir served" : "File served");
+			self::$served = $dir_was_served ? 'dir' : 'file';
 			return true;
 		}
 
@@ -231,9 +202,64 @@ class Q_Dispatcher
 		if (Q_Request::isServiceWorker()) {
 			Q::event('Q/serviceWorker/response');
 			self::result("Service Worker served");
+			self::$served = 'serviceWorker';
 			return true;
 		}
 		Q_Request::mergeCookieJS();
+
+		// potentially redirect to a static file
+		$sessionId = Q_Session::requestedId();
+		if (empty($_SERVER['HTTP_X_QBIX_REQUEST'])) {
+			$redirectKey = Q_Request::isAjax() ? 'json' : 'html';
+			if (empty($sessionId)) {
+				$redirectKey = 'landing';
+			} else if ($prefix = Q_Config::get(
+				'Q', 'session', 'id', 'prefixes', 'authenticated', null
+			) and Q::startsWith($sessionId, $prefix)) {
+				$redirectKey .= '.authenticated';
+			}
+			if ($redirectSuffix = Q_Config::get(
+				'Q', 'static', 'redirect', $redirectKey, null
+			) and $routesKey = Q_Config::get(
+				'Q', 'static', 'generate', $redirectSuffix, 'routes', null
+			) and $routes = Q_Config::get(
+				'Q', 'static', 'routes', $routesKey, $route, null
+			)) {
+				$found = true;
+				foreach (self::$uri->toArray() as $k => $v) {
+					if (!isset($routes[$k])
+					or !in_array($v, $routes[$k])) {
+						if (!$k) {
+							continue; // this is only used to define extra conditions for routes
+						}
+						$found = false;
+						break;
+					}
+				}
+				if ($found) {
+					Q_Session::start(); // set session cookie
+					$normalized = Q_Utils::normalizeUrlToPath(Q_Request::url());
+					$staticWebUrl = Q_Response::staticWebUrl();
+					$redirectUrl = "$staticWebUrl/$normalized$redirectSuffix";
+					$filename = APP_WEB_DIR . DS . str_replace('/', DS, $redirectSuffix);
+					$mtime = filemtime($filename);
+					$noRedirect = false;
+					if ($duration = Q_Config::get('Q', 'static', 'expires', 0)) {
+						$expires = $mtime + $duration;
+						if (time() <= $expires) {
+							header("Expires: $expires");
+						} else {
+							$noRedirect = true;
+						}
+					}
+					if (!$noRedirect) {
+						header("Location: $redirectUrl");
+						self::response();
+						return true;
+					}
+				}
+			}
+		}
 
 		// This loop is for forwarding
 		$max_forwards = Q_Config::get('Q', 'maxForwards', 10);
@@ -256,6 +282,7 @@ class Q_Dispatcher
 					 */
 					Q::event("Q/noModule", self::$routed); // should echo things
 					self::result("No module");
+					self::$served = 'notFound';
 					return false;
 				}
 
@@ -273,12 +300,14 @@ class Q_Dispatcher
 						 */
 						Q::event('Q/notFound', self::$routed); // should echo things
 						self::result("Unknown module");
+						self::$served = 'notFound';
 						return false;
 					}
 				} else {
 					if (!Q::realPath("handlers/$module")) {
 						Q::event('Q/notFound', self::$routed); // should echo things
 						self::result("Unknown module");
+						self::$served = 'notFound';
 						return false;
 					}
 				}
@@ -287,6 +316,7 @@ class Q_Dispatcher
 				if (empty(self::$uri->action)) {
 					Q::event('Q/notFound', self::$routed); // should echo things
 					self::result("Unknown action");
+					self::$served = 'notFound';
 					return false;
 				}
 
@@ -330,6 +360,7 @@ class Q_Dispatcher
 					$stop_dispatch = Q::event($eventName, self::$routed, true);
 					if ($stop_dispatch) {
 						self::result("Stopped dispatch");
+						self::$served = 'stopped';
 						return false;
 					}
 				}
@@ -354,6 +385,7 @@ class Q_Dispatcher
 					if (Q_Response::getErrors()) {
 						// There were validation errors -- render a response
 						self::result('Validation errors');
+						self::$served = 'errors';
 						self::errors(null, $module, null);
 						return false;
 					}
@@ -398,6 +430,7 @@ class Q_Dispatcher
 					if (Q_Response::getErrors()) {
 						// There were processing errors -- render a response
 						self::result('Processing errors');
+						self::$served = 'errors';
 						self::errors(null, $module, null);
 						return false;
 					}
@@ -424,6 +457,7 @@ class Q_Dispatcher
 				}
 				self::errors(null, $module, $partialResponse);
 				self::result("Rendered errors");
+				self::$served = 'errors';
 				return true;	
 			} catch (Exception $exception) {
 				if (!empty($ob)) {
@@ -443,6 +477,7 @@ class Q_Dispatcher
 					$message, $file, $line, $trace_string
 				);
 				self::result("Exception occurred:\n\n$colored");
+				self::$served = 'errors';
 				try {
 					self::errors($exception, $module, $partialResponse);
 				} catch (Exception $e) {
@@ -541,6 +576,7 @@ class Q_Dispatcher
 		}
 		self::$servedResponse = true;
 		self::result("Served response");
+		self::$served = 'response';
 		return true;
 	}
 
@@ -662,6 +698,16 @@ class Q_Dispatcher
 	 * @protected
 	 */
 	protected static $uri;
+
+	/**
+	 * Set to "file", "dir", or "response"
+	 * @property $served
+	 * @type string
+	 * @static
+	 * @protected
+	 */
+	public static $served;
+
 	/**
 	 * @property $skip
 	 * @type array

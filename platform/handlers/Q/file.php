@@ -43,10 +43,18 @@ function Q_file($params, &$result)
 			header("Content-type: image/vnd.microsoft.icon .cur .ico");
 			break;
 		default:
+			if (file_exists($filename)) {
+				$mimetype = mime_content_type($filename);
+				header ("Content-Type: $mimetype");	
+			} else {
+				header("Content-Type: text/plain");
+				$ext = 'txt';
+			}
 			break;
 	}
 	if (!file_exists($filename)) {
 		header("HTTP/1.0 404 Not Found");
+		Q_Dispatcher::result('404 file generated');
 		$filename = Q_PLUGIN_WEB_DIR.DS.'img'.DS.'404'.DS."404.$ext";
 		readfile($filename);
 		return false;

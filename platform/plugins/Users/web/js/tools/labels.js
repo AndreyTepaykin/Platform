@@ -130,7 +130,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
     //},
     addToPhonebook: Q.info.isMobile,
     addToPhonebookAtEnd: false,
-    icon: 200,
+    icon: Q.largestSize('Users/labels', false, {dontThrow: true}) || 1000,
     editable: false,
     imagepicker: {},
     cacheBust: null,
@@ -159,7 +159,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
                     return $(this).data('label') === obj.label
                 });
                 if ($newlyAdded.length != 0) {
-                    tool.onClickHandler($newlyAdded); // start to edit it
+                    tool.onClickHandler($newlyAdded, {noClose: true}); // start to edit it
                 }
             });
         });
@@ -191,7 +191,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
      * overwise - add new label
      * @return {undefined}
      */
-    onClickHandler: function($item) {
+    onClickHandler: function($item, options) {
 
         var isEdit = ($item instanceof $) ? true : false;
 
@@ -226,7 +226,8 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
                                 src: Q.url("{{Users}}/img/icons/default/200.png"),
                                 canAddWeb3: state.canAddWeb3,
                             }
-                        }
+                        },
+                        noClose: options && options.noClose
                     }
                 ,
                 {
@@ -511,7 +512,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
 
                         var options = Q.extend({
                             saveSizeName: 'Users/icon',
-                            showSize: state.icon || $img.width(),
+                            showSize: state.icon || Q.largestSize('Users/labels'),
                             path: 'Q/uploads/Users',
                             preprocess: function (callback) {
                                 var label = $('.Users_labels_editdialog', dialog).attr('data-label');
@@ -721,6 +722,7 @@ Q.Tool.define("Users/labels", function Users_labels_tool(options) {
             Q.Template.render("Users/labels", {
                 labels: labels,
                 all: all,
+                iconSize: Q.largestSize('Users/labels'),
                 canAdd: Q.Users.loggedInUser && state.canAdd,
                 canAddIcon: Q.url('{{Q}}/img/actions/add.png'),
                 phoneBookIcon: Q.url('{{Q}}/img/actions/add_to_phonebook.png'),
@@ -921,7 +923,7 @@ Q.Template.set('Users/labels', `
 {{/if}}
 {{#each labels}}
     <li class="Users_labels_label" data-label="{{this.label}}" data-icon="{{this.icon}}" data-title="{{this.title}}" data-description="{{this.description}}">
-      <img class="Users_labels_icon" src="{{call "iconUrl" 400}}" alt="label icon">
+      <img class="Users_labels_icon" src="{{call "iconUrl" ../iconSize}}" alt="label icon">
       <div class="Users_labels_title">{{this.title}}</div>
     </li>
 {{/each}}

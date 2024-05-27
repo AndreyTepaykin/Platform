@@ -81,14 +81,6 @@ class Db_Mysql implements Db_Interface
 	public $maxCheckStrlen = 1000000;
 
 	/**
-	 * Record whether we already set the timezone
-	 * @property $setTimezoneDone
-	 * @type string
-	 * @protected
-	 */
-	protected static $setTimezoneDone;
-
-	/**
 	 * Actually makes a connection to the database (by creating a PDO instance)
 	 * @method reallyConnect
 	 * @param {array} [$shardName=null] A shard name that was added using Db::setShard.
@@ -182,16 +174,12 @@ class Db_Mysql implements Db_Interface
 		}
 		$this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 		$this->pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
-		if (empty(self::$setTimezoneDone[$dsn])) {
-			$this->setTimezone();
-			self::$setTimezoneDone[$dsn] = true;
-		}
 		return $this->pdo;
 	}
 	
 	/**
 	 * Sets the timezone in the database to match the one in PHP
-	 * @param {integer} [$offset=timezone_offset_get()] in seconds
+	 * @param {integer} [$offset=0] in seconds
 	 * @method setTimezone
 	 */
 	function setTimezone($offset = null)
@@ -206,7 +194,7 @@ class Db_Mysql implements Db_Interface
 		$hours = sprintf("%02d", floor($abs / 3600));
 		$minutes = sprintf("%02d", floor(($abs % 3600) / 60));
 		$sign = ($offset > 0) ? '+' : '-';
-		$this->rawQuery("SET time_zone = '$sign$hours:$minutes';")->execute();
+		$this->pdo->exec("SET time_zone = '$sign$hours:$minutes';");
 	}
 	
 	/**
