@@ -3007,17 +3007,22 @@ Q.Event.define = function (target, type) {
 };
 
 /**
- * Returns a Q.Event that will fire given an DOM object and an event name
+ * Returns a Q.Event that will fire given an DOM object and an event name.
+ * Add and remove event handlers on this event. When the last handler is
+ * removed, then Q.removeEventListener() is called on the target DOM element.
  * @static
  * @method from
  * @param {String|Q.Tool} key
- * @param {Object} source
+ * @param {Object} target
  * @param {String} eventName
  * @return {Q.Event}
  */
-Q.Event.from = function _Q_Event_from(source, eventName) {
+Q.Event.from = function _Q_Event_from(target, eventName) {
 	var event = new Q.Event();
-	Q.addEventListener(source, eventName, event.handle);
+	Q.addEventListener(target, eventName, event.handle);
+	event.onEmpty().set(function () {
+		Q.removeEventListener(target, eventName, event.handler);
+	});
 	return event;
 };
 
@@ -12455,7 +12460,7 @@ Q.Socket.onEvent = Q.Event.factory(
 		var event = this;
     	event.onFirst().set(function () {
 			// The first handler was added to the event
-			Q.each(Q.Socket.get(ns, url), function (url, qs) {
+			Q.each(Q.Socket.get(ns), function (url, qs) {
 				function _Q_Socket_register(qs) {
 					// this occurs when socket is connected
 					_ioOn(qs.socket, name, event.handle);
@@ -13763,6 +13768,37 @@ Q.Visual = Q.Pointer = {
 			|| (Q.info.platform === 'mac' && event.metaKey);
 	},
 	/**
+	 * Waits until all Q.Masks above count  have been hidden.
+	 * If none were showing, calls the callback asynchronously right away
+	 * @static
+	 * @method waitUntilNoMasks
+	 * @param {Number} [counter=0] How many masks would be remaining
+	 * @param {Function} callback The function called by the IntersectionObserver, takes (entries, observer).
+	 *   Only called when entries[0].isIntersecting is true.
+	 * @return {Object} has cancel() function to remove event handler early
+	 */
+	waitUntilNoMasks: function (counter, callback) {
+		if (!callback) {
+			return;
+		}
+		var key;
+		if (Q.Masks.counter <= counter) {
+			setTimeout(callback, 0);
+		} else {
+			key = Q.Masks.onHide.set(function _handler() {
+				if (Q.Masks.counter <= counter) {
+					setTimeout(callback, 0);
+					Q.Masks.onHide.remove(key);
+				}
+			});
+		}
+		return {
+			cancel: function () {
+				key && Q.Masks.onHide.remove(key);
+			}
+		};
+	},
+	/**
 	 * Sets an observer to wait for an element become visible.
 	 * @static
 	 * @method waitUntilVisible
@@ -13960,7 +13996,7 @@ Q.Visual = Q.Pointer = {
 	 * @param {String} [options.height="200px"]
 	 * @param {Integer} [options.zIndex=99999]
 	 * @param {Boolean|Object} [options.waitUntilVisible=false] Wait until it's visible, then show hint right away. You can also pass an options here for Q.Pointer.waitUntilVisible(). Typically used together with dontStopBeforeShown.
-	 * @param {Boolean} [options.dontStopBeforeShown=false] Don't let Q.Visual.stopHints stop this hint before it's shown.
+	 * @param {Boolean} [options.dontStopBeforeShown=false] Don't let Q.Visual.stopHints stop this hint before it's shown. If waitUntilVisible is true, the stopHints checks are deferred.
 	 * @param {boolean} [options.dontRemove=false] Pass true to keep current hints displayed
 	 * @param {boolean} [options.neverRemove=false] Pass true to keep current hints displayed even after user interaction.
 	 * @param {boolean} [options.tooltip] Can be used to show a tooltip with some html
@@ -13989,26 +14025,31 @@ Q.Visual = Q.Pointer = {
 
 		options = Q.extend({}, Q.Visual.hint.options, 10, options);
 		if (options.waitUntilVisible) {
-			var element = targets[0] || targets;
-			if (!element instanceof Element) {
-				throw new Exception("Q.Visua.hint: waitUntilVisible needs element");
+			var element = (targets && targets[0]) || targets;
+			if (!(element instanceof Element)) {
+				throw new Q.Exception("Q.Visua.hint: waitUntilVisible needs element");
 			}
-			return Q.Visual.waitUntilVisible(targets[0] || targets, function (entries, observer) {
-				if (entries[0].isIntersecting) {
-					var sp = entries[0].target.scrollingParent();
-					var st = sp.scrollTop;
-					var ival = setInterval(function () {
-						if (st === sp.scrollTop) {
-							// scrolling paused for a little bit
-							clearInterval(ival);
-							options.waitUntilVisible = false;
-							options.dontStopBeforeShown = true;
-							Q.Visual.hint(targets, options);
+			return Q.Visual.waitUntilNoMasks(0, function () {
+				Q.Visual.waitUntilVisible(targets[0] || targets, function (entries, observer) {
+					if (entries[0].isIntersecting) {
+						var sp = entries[0].target.scrollingParent();
+						if (!sp) {
+							return;
 						}
-						st = sp.scrollTop;
-					}, 300);
-				}
-			}, options.waitUntilVisible === true ? {} : options.waitUntilVisible);
+						var st = sp.scrollTop;
+						var ival = setInterval(function () {
+							if (st === sp.scrollTop) {
+								// scrolling paused for a little bit
+								clearInterval(ival);
+								options.waitUntilVisible = false;
+								options.dontStopBeforeShown = true;
+								Q.Visual.hint(targets, options);
+							}
+							st = sp.scrollTop;
+						}, 300);
+					}
+				}, options.waitUntilVisible === true ? {} : options.waitUntilVisible)
+			});
 		}
 
 		var args = Array.prototype.slice.call(arguments, 0);
@@ -14193,7 +14234,7 @@ Q.Visual = Q.Pointer = {
                 Q.Visual.stopHintsIgnore = true;
                 Q.addEventListener(window, Q.Pointer.start, Q.Visual.stopHints, false, true);
                 Q.addEventListener(window, 'keydown', Q.Visual.stopHints, false, true);
-                Q.addEventListener(document, 'scroll', Q.Visual.stopHints, false, true);
+                Q.addEventListener(document, 'scroll', Q.Visual.stopHints, true, true);
                 Q.Visual.hint.addedListeners = true;
                 setTimeout(function () {
                     delete Q.Visual.stopHintsIgnore;
@@ -15766,6 +15807,7 @@ Q.Video.upload = function (params, provider, callback) {
  */
 Q.Masks = {
 	collection: {},
+	counter: 0,
 	/**
 	 * Creates new mask with given key and options, or returns already created one for that key.
 	 * @static
@@ -15842,6 +15884,7 @@ Q.Masks = {
 		options.animation = options.animation || {};
 		var mask = Q.Masks.mask(key, options);
 		if (!mask.counter) {
+			++Q.Masks.counter;
 			var me = mask.element;
 			me.style.display = 'block';
 			if (mask.fadeIn) {
@@ -15886,6 +15929,7 @@ Q.Masks = {
 			} else {
 				me.style.display='none';
 			}
+			--Q.Masks.counter;
 		}
 		Q.handle(Q.Masks.onHide, Q.Masks, [key, mask]);
 	},
