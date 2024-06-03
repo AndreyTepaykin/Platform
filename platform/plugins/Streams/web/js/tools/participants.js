@@ -228,8 +228,13 @@ function _Streams_participants(options) {
 			}, { sort: 'insertedTime', ascending: false });
 			state.count = c;
 			if (state.showBlanks) {
+				var opacity = 50;
 				Q.each(c, state.maxShow-1, 1, function () {
-					tool.addAvatar('');
+					var element = tool.addAvatar('');
+					if (element) {
+						element.style.opacity = String(opacity) + '%';
+						opacity = opacity * 0.7;
+					}
 				});
 			}
 			_continue(tool, callback);
@@ -301,6 +306,7 @@ function _Streams_participants(options) {
 			tool.orderAvatars();
 			Q.layout(tool.$pc[0], true);
 		});
+		return $element[0];
 	},
 	/**
 	 * Remove avatar from participants list
@@ -453,7 +459,7 @@ function _continue(tool, callback) {
 				function (err, html) {
 					if (err) return;
 					var $element = tool.$invite = $(html).insertBefore(tool.$avatars);
-					var filter = '.Streams_inviteTrigger';
+					var filter = '.Streams_inviteTrigger, .Users_avatar_icon_blank';
 					$te.on(Q.Pointer.fastclick, filter, function () {
 						var options = Q.extend({
 							identifier: si.identifier
@@ -479,7 +485,7 @@ function _continue(tool, callback) {
 					});
 
 					if (si.clickable) {
-						$('img', $element).plugin(
+						$('.Streams_inviteTrigger img', $element).plugin(
 							'Q/clickable', Q.extend({
 								triggers: $element
 							}, si.clickable)

@@ -9,6 +9,16 @@
  */
 class Q_Request
 {
+	static function isSecure($includingForwarded = false)
+	{
+		$result = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+			|| $_SERVER['SERVER_PORT'] == 443;
+		if ($includingForwarded) {
+			$result = $result || Q::ifset($_SERVER, 'HTTP_X_FORWARDED_PROTO', null) === 'https';
+		}
+		return $result;
+	}
+
 	/**
 	 * Converts the specified fields from underscores
 	 * @param {array} $fieldNames An array of field names
@@ -185,8 +195,7 @@ class Q_Request
 		$request_uri = $_SERVER['REQUEST_URI'];
 		
 		// determing whether this should be reported as https
-		$https = empty($_SERVER['HTTPS'])
-			|| Q::ifset($_SERVER, 'HTTP_X_FORWARDED_PROTO', null) === 'https';
+		$https = self::isSecure(true);
 		
 		// Deal with the querystring
 		$r_parts = explode('?', $request_uri);
@@ -200,7 +209,7 @@ class Q_Request
 				$server_name = $_SERVER['HTTP_HOST'];
 			}
 			self::$url = sprintf('http%s://%s%s%s%s%s%s', 
-				$https ? '' : 's', 
+				$https ? 's' : '', 
 				isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '',
 				isset($_SERVER['PHP_AUTH_PW']) ? ':'.$_SERVER['PHP_AUTH_PW'] : '',
 				isset($_SERVER['PHP_AUTH_USER']) ? '@' : '',
@@ -1299,11 +1308,10 @@ class Q_Request
 			$server_name = $_SERVER['HTTP_HOST'];
 		}
 		
-		$https = empty($_SERVER['HTTPS'])
-			|| Q::ifset($_SERVER, 'HTTP_X_FORWARDED_PROTO', null) === 'https';
+		$https = self::isSecure(true);
 
 		return sprintf('http%s://%s%s%s%s%s%s', 
-			$https ? '' : 's',
+			$https ? 's' : '',
 			isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '',
 			isset($_SERVER['PHP_AUTH_PW']) ? ':'.$_SERVER['PHP_AUTH_PW'] : '',
 			isset($_SERVER['PHP_AUTH_USER']) ? '@' : '', 
@@ -1331,10 +1339,9 @@ class Q_Request
 		if ($server_name[0] === '*' || $server_name[0] === '~') {
 			$server_name = $_SERVER['HTTP_HOST'];
 		}
-		$https = empty($_SERVER['HTTPS'])
-			|| Q::ifset($_SERVER, 'HTTP_X_FORWARDED_PROTO', null) === 'https';
+		$https = self::isSecure(true);
 		return sprintf('http%s://%s%s%s%s%s%s', 
-			$https ? '' : 's',
+			$https ? 's' : '',
 			isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '',
 			isset($_SERVER['PHP_AUTH_PW']) ? ':'.$_SERVER['PHP_AUTH_PW'] : '',
 			isset($_SERVER['PHP_AUTH_USER']) ? '@' : '',

@@ -237,10 +237,20 @@ class Q_Dispatcher
 					}
 				}
 				if ($found) {
+					$querystrings = Q_Config::get('Q', 'static', 'querystrings', array());
+					$qsname = '';
+					foreach ($querystrings as $qsn => $qss) {
+						foreach ($qss as $qs) {
+							if (Q::startsWith($_SERVER['QUERY_STRING'], $qs)) {
+								$qsname = "-$qsn";
+								break 2;
+							}
+						}
+					}
 					Q_Session::start(); // set session cookie
 					$normalized = Q_Utils::normalizeUrlToPath(Q_Request::url());
 					$staticWebUrl = Q_Response::staticWebUrl();
-					$redirectUrl = "$staticWebUrl/$normalized$redirectSuffix";
+					$redirectUrl = "$staticWebUrl/$normalized$qsname$redirectSuffix";
 					$filename = APP_WEB_DIR . DS . str_replace('/', DS, $redirectSuffix);
 					$mtime = filemtime($filename);
 					$noRedirect = false;
@@ -410,18 +420,6 @@ class Q_Dispatcher
 						Q::event($method_event);
 					}
 				}
-
-				// You can calculate some analytics here, and store them somewhere
-				$eventName = 'Q/analytics';
-				self::startSessionBeforeEvent($eventName);
-				if (!isset(self::$skip[$eventName])) {
-					/**
-					 * Gives the app a chance to gather analytics from the request.
-					 * @event Q/analytics
-					 * @param {array} $routed
-					 */
-					Q::event($eventName, self::$routed, true);
-				}
 				
 				$eventName = 'Q/errors';
 				self::startSessionBeforeEvent($eventName);
@@ -443,6 +441,18 @@ class Q_Dispatcher
 
 				self::response();
 				
+				// You can calculate some analytics here, and store them somewhere
+				$eventName = 'Q/analytics';
+				self::startSessionBeforeEvent($eventName);
+				if (!isset(self::$skip[$eventName])) {
+					/**
+					 * Gives the app a chance to gather analytics from the request.
+					 * @event Q/analytics
+					 * @param {array} $routed
+					 */
+					Q::event($eventName, self::$routed, true);
+				}
+
 				return true;
 			} catch (Q_Exception_DispatcherForward $e) {
 				if (!empty($ob)) {

@@ -1,5 +1,7 @@
 <?php
 
+include_once(dirname(__FILE__).'/../Db.php');
+
 /**
  * @module Db
  */
@@ -396,7 +398,7 @@ abstract class Db_Query extends Db_Expression
 		if (isset($this->cachedShardIndex)) {
 			return $this->cachedShardIndex;
 		}
-		if (!$this->className) {
+		if (!class_exists('Q') || !$this->className) {
 			return null;
 		}
 		$conn_name = $this->db->connectionName();

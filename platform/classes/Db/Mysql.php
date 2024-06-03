@@ -417,7 +417,7 @@ class Db_Mysql implements Db_Interface
 		}
 
 		// simulate beforeSave on all rows
-		$className = Q::ifset($options, 'className', null);
+		$className = isset($options['className']) ? $options['className'] : null;
 		$rowObjects = array();
 		if ($className) {
 			$isCallable = is_callable(array($className, 'beforeInsertManyAndExecute'));
@@ -499,7 +499,7 @@ class Db_Mysql implements Db_Interface
 				$query->className = $className;
 				$sharded = $query->shard(null, $record);
 				if (count($sharded) > 1 or $shard === '*') { // should be only one shard
-					throw new Exception("Db_Mysql::insertManyAndExecute row should be stored on exactly one shard: " . Q::json_encode($record));
+					throw new Exception("Db_Mysql::insertManyAndExecute row should be stored on exactly one shard: " . json_encode($record));
 				}
 				$shard = key($sharded);
 			}
@@ -805,7 +805,10 @@ class Db_Mysql implements Db_Interface
 				$id .= $characters[mt_rand(0, $count-1)];
 			}
 			if (!empty($options['filter'])) {
-				$ret = Q::call($options['filter'], array(@compact('id', 'table', 'field', 'where', 'options')));
+				$p = array(@compact('id', 'table', 'field', 'where', 'options'));
+				$ret = class_exists('Q')
+					? Q::call($options['filter'], $p)
+					: call_user_func_array($options['filter'], $p);
 				if ($ret === false) {
 					if (++$attempts > 100) {
 						throw new Q_Exception_BadValue(array(
@@ -2537,7 +2540,7 @@ $field_hints
 	 */
 	static function table(\$with_db_name = true, \$alias = null)
 	{
-		if (Q_Config::get('Db', 'connections', '$connectionName', 'indexes', '$class_name_base', false)) {
+		if (class_exists('Q_Config') and Q_Config::get('Db', 'connections', '$connectionName', 'indexes', '$class_name_base', false)) {
 			return new Db_Expression((\$with_db_name ? '{{dbname}}.' : '').'{{prefix}}'.'$table_name_base');
 		} else {
 			\$conn = Db::getConnection($connectionName_var);
@@ -2968,3 +2971,5 @@ EOT;
 		return $base_class_string; // unless the above line threw an exception
 	}
 }
+
+include_once(dirname(__FILE__).'/Query/Mysql.php');

@@ -209,7 +209,7 @@ class Q_Uri
 	 */
 	static function cacheBust($url, $milliseconds)
 	{
-		return Q_Uri::url("$url?Q.cacheBust=".floor(microtime(true)*1000/$milliseconds));
+		return Q_Uri::url("$url?Q.cb=".floor(microtime(true)*1000/$milliseconds));
 	}
 	
 	/**
@@ -874,14 +874,19 @@ class Q_Uri
 	 */
 	static function filenamefromUrl ($url)
 	{
+		$parts = explode('?', $url);
+		$url = $parts[0];
 		$interpolatedUrl = self::interpolateUrl($url);
 		if (Q_Valid::url($interpolatedUrl)) {
 			// This is an absolute URL. Get only the part after the base URL
 			// Run it through proxies first
-			$interpolatedUrl = self::proxyDestination($interpolatedUrl);
-			$local_url = Q_Request::tail($interpolatedUrl);
+			$proxiedUrl = self::proxyDestination($interpolatedUrl);
+			$local_url = Q_Request::tail($proxiedUrl);
 			if (!isset($local_url)) {
-				return null;
+				$local_url = Q_Request::tail($interpolatedUrl);
+				if (!isset($local_url)) {
+					return null;
+				}
 			}
 		} else {
 			$local_url = $url;
@@ -1027,15 +1032,23 @@ class Q_Uri
 		}
 		$fileTimestamp = null;
 		$fileSHA1 = null;
+		$relativeUrl = null;
 		if ((!empty($config['caching']) or !empty($config['integrity']))) {
 			// $ignoreUrls = Q_Config::get('Q', 'urls', 'ignore', array());
 			$baseUrl = Q_Request::baseUrl(false);
-			if (Q::startsWith($url, $baseUrl)) {
-				$parts = explode('?', $url);
-				$head = $parts[0];
-				$tail = (count($parts) > 1 ? $parts[1] : '');
-				$urlRelativeToBase = substr($head, strlen($baseUrl)+1);
-				$parts = explode('/', $urlRelativeToBase);
+			$parts = explode('?', $url);
+			$head = $parts[0];
+			$tail = (count($parts) > 1 ? $parts[1] : '');
+			if (Q::startsWith($head, $baseUrl)) {
+				$relativeUrl = substr($head, strlen($baseUrl)+1);
+			} else {
+				$proxyBaseUrl = Q_Request::proxyBaseUrl(false);
+				if (Q::startsWith($head, $proxyBaseUrl)) {
+					$relativeUrl = substr($head, strlen($proxyBaseUrl)+1);
+				}
+			}
+			if ($relativeUrl) {
+				$parts = explode('/', $relativeUrl);
 				$parts[] = null;
 				$tree = new Q_Tree(Q_Uri::$urls);
 				$info = call_user_func_array(array($tree, 'get'), $parts);
@@ -1051,7 +1064,7 @@ class Q_Uri
 		and isset($fileTimestamp)
 		and $fileTimestamp <= $cacheTimestamp
 		and self::$cacheBaseUrl) {
-			return array(self::$cacheBaseUrl . $urlRelativeToBase, $fileSHA1);
+			return array(self::$cacheBaseUrl . $relativeUrl, $fileSHA1);
 		}
 		if ($fileTimestamp) {
 			$field = Q_Config::get(Q::app(), 'response', 'cacheBustField', 'Q.cb');
