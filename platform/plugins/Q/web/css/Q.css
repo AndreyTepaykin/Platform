@@ -895,7 +895,7 @@ html body .Q_columns_containsExpanded {
 #content.Q_columns_containsExpanded {
 	padding: 0;
 }
-.Q_columns_siblingContainsExpanded:not(#notices_slot):not(.Q_contextual):not(.Q_floatAboveDocument) {
+.Q_columns_siblingContainsExpanded:not(#notices_slot):not(.Q_contextual):not(.Q_floatAboveDocument):not(.Q_mask):not(.Q_overlay):not(.Q_dialog) {
 	z-index: 0 !important;
 }
 #status_background {
@@ -1109,6 +1109,10 @@ body.Q_columns_animationFX {
 @media (prefers-color-scheme: dark) {
 	.Q_overlay, .Q_fullscreen_dialog {
 		background: url(../img/bg/overlay-dark.png);
+		color: white;
+		fill: white;
+	}
+	.Q_overlay a, .Q_fullscreen_dialog a {
 		color: white;
 		fill: white;
 	}
