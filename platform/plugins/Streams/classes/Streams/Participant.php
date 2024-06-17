@@ -144,7 +144,7 @@ class Streams_Participant extends Base_Streams_Participant
 
 	/**
 	 * Test whether participant has one or more roles in stream
-	 * 
+	 * @method testRoles
 	 * @param {string|array} $roles You can pass a role name, or array of role names
 	 * @return {boolean} whether the user has all the roles
 	 */
@@ -153,16 +153,20 @@ class Streams_Participant extends Base_Streams_Participant
 		if (empty($extraRoles) || empty($roles)) {
 			return false;
 		}
-		if (gettype($extraRoles) === 'string') {
+		if (is_string($extraRoles)) {
 			$extraRoles = array($extraRoles);
-		} elseif (Q::isAssociative($extraRoles)) {
+		} else if (Q::isAssociative($extraRoles)) {
 			$extraRoles = array_keys($extraRoles);
 		}
-		if (gettype($roles) === 'string') {
+		if (is_string($roles)) {
 			$roles = array($roles);
 		}
-
-		return !empty(array_intersect($extraRoles, $roles));
+		foreach ($roles as $role) {
+			if (!in_array($role, $extraRoles, true)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
