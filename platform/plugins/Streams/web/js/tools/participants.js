@@ -44,7 +44,7 @@ function _Streams_participants(options) {
 		throw new Q.Error("Streams/participants: missing streamName option");
 	}
 	
-	tool.element.addClass('Streams_noParticipants');
+	tool.element.addClass('Streams_participants_loading');
 	if (state.hideIfNoParticipants) {
 		tool.element.addClass('Streams_hideIfNoParticipants');
 	}
@@ -153,6 +153,7 @@ function _Streams_participants(options) {
 		tool.$blanks = $('.Streams_participants_blanks', $te);
 		
 		if (tool.element.toolWasRendered) {
+			state.count = tool.element.toolWasRendered.count;
 			_continue(tool, callback);
 			return false;
 		}
@@ -266,11 +267,6 @@ function _Streams_participants(options) {
 				state.overflowed = overflowed;
 			}
 		}, tool); 
-
-		// We will leave this even after tool is removed,
-		// so that when its element is retained, we don't refresh it.
-		// To remove pollution we could have used a WeakMap.
-		tool.element.toolWasRendered = true;
 	},
 	/**
 	 * Check if avatar exists
@@ -389,6 +385,13 @@ function _continue(tool, callback) {
 	if (state.max) {
 		tool.$max.text('/' + state.max);
 	}
+	
+	// We will leave this even after tool is removed,
+	// so that when its element is retained, we don't refresh it.
+	// To remove pollution we could have used a WeakMap.
+	tool.element.toolWasRendered = {
+		count: state.count
+	};
 	
 	// set expand icon click event
 	tool.$pei.plugin('Q/clickable').on(Q.Pointer.fastclick, function () {
