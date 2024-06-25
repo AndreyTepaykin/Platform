@@ -51,6 +51,11 @@ function _Streams_participants(options) {
 	
 	tool.Q.onStateChanged('count').set(function (name) {
 		var c = state.count || 0;
+
+		if (tool.element.toolWasRendered) {
+			tool.element.toolWasRendered.count = c;
+		}
+
 		tool.$count.text(c >= 100 ? '99+' : c.toString());
 		if (state.showSummary) {
 			tool.$summary.show().plugin('Q/textfill', 'refresh');
@@ -233,6 +238,7 @@ function _Streams_participants(options) {
 				}
 			}, { sort: 'insertedTime', ascending: false });
 			state.count = c;
+			tool.stateChanged('count');
 			if (state.showBlanks) {
 				var opacity = 50;
 				Q.each(c, state.maxShow-1, 1, function () {
@@ -385,7 +391,7 @@ function _continue(tool, callback) {
 	if (state.max) {
 		tool.$max.text('/' + state.max);
 	}
-	
+
 	// We will leave this even after tool is removed,
 	// so that when its element is retained, we don't refresh it.
 	// To remove pollution we could have used a WeakMap.
