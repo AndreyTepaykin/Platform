@@ -54,7 +54,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 	if (!offset) {
 		return; // some error
 	}
-	var focusedResults = false;
+	tool.focusedResults = false;
 	tool.$results = $('<div style="text-align: left;" class="Streams_userChooser_results" />').css({
 		display: 'none',
 		position: 'absolute',
@@ -67,7 +67,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 		height: state.resultsHeight,
 		'tab-index': 9000
 	}).on(Q.Pointer.start.eventName + ' focusin', function () {
-		focusedResults = true;
+		tool.focusedResults = true;
 	}).appendTo('body');
 
 	tool.Q.onStateChanged('resultsHeight').set(function () {
@@ -84,7 +84,19 @@ Q.Tool.define("Streams/userChooser", function(o) {
 		}
 	}, 300);
 
-	var doQuery = Q.debounce(function (event) {
+	var _byPrefix = Q.debounce(function (onResponse, options) {
+		tool.$input.css({
+			'background-image': 'url(' +Q.url('/{{Q}}/img/throbbers/loading.gif') + ')',
+			'background-repeat': 'no-repeat'
+		});
+		Q.Streams.Avatar.byPrefix(tool.$input.val().toLowerCase(), onResponse, options);
+	}, 500);
+
+	var doQuery = function (event) {
+
+		if (tool.suppressQuery) {
+			return;
+		}
 
 		var cur = $('.Q_selected', tool.$results);
 		var query = tool.$input.val();
@@ -113,7 +125,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 
 		switch (event.keyCode) {
 			case 38: // up arrow
-				if (event.type === 'keyup') {
+				if (event.type !== 'keydown') {
 					return;
 				}
 				var prev = cur.prev();
@@ -130,7 +142,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 				}
 				return false;
 			case 40: // down arrow
-				if (event.type === 'keyup') {
+				if (event.type !== 'keydown') {
 					return;
 				}
 				var next = cur.next();
@@ -147,7 +159,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 				next.addClass('Q_selected');
 				return false;
 			case 13: // enter
-				if (event.type === 'keyup') {
+				if (event.type !== 'keydown') {
 					return;
 				}
 				if (cur) {
@@ -167,11 +179,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 					tool.$results.remove();
 					return;
 				}
-				tool.$input.css({
-					'background-image': 'url(' +Q.url('/{{Q}}/img/throbbers/loading.gif') + ')',
-					'background-repeat': 'no-repeat'
-				});
-				Q.Streams.Avatar.byPrefix(tool.$input.val().toLowerCase(), onResponse, options);
+				_byPrefix(onResponse, options);
 		}
 
 		function onChoose (cur) {
@@ -232,7 +240,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 				}).data('userId', k)
 				.data('avatar', avatars[k])
 				.on(Q.Pointer.start.eventName + ' focusin', function () {
-					focusedResults = true;
+					tool.focusedResults = true;
 				}).appendTo(tool.$results);
 				if (!show) {
 					result.addClass('Q_selected');
@@ -265,11 +273,13 @@ Q.Tool.define("Streams/userChooser", function(o) {
 				tool.$results.remove();
 			}
 		}
-	}, 200);
+	};
+
+	$(window).on('blur', tool.end.bind(this));
 
 	tool.$input.on('blur', function (event) {
 		setTimeout(function () {
-			if (!focusedResults) {
+			if (!tool.focusedResults) {
 				tool.$results.remove();
 			} else {
 				function _handlePointerEnd() {
@@ -280,7 +290,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 					setTimeout(_handlePointerEnd, 0);
 				});
 			}
-			focusedResults = false;
+			tool.focusedResults = false;
 		}, 10);
 	}).on('focus change keyup keydown', doQuery)
 
@@ -305,6 +315,12 @@ Q.Tool.define("Streams/userChooser", function(o) {
 
 {
 	end: function () {
+		var tool = this;
+		tool.focusedResults = false;
+		tool.suppressQuery = true;
+		setTimeout(function () {
+			tool.suppressQuery = false;
+		}, 300);
 		if (this.$input) {
 			this.$input.blur().trigger('Q_refresh');	
 		}
@@ -316,6 +332,7 @@ Q.Tool.define("Streams/userChooser", function(o) {
 	Q: {
 		beforeRemove: function () {
 			this.end();
+			$(window).off('blur', this.end.bind(this));
 		}
 	}
 }

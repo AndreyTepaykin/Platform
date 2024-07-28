@@ -113,7 +113,7 @@ body { position: relative; margin: 0; }
 .Q_success { background: #e2ffee !important; }
 .Q_selectable { border: 1px solid transparent; }
 .Q_notTouchscreen .Q_selectable:hover { background: #aeaeae; background: rgba(175,175,175,0.5); }
-.Q_selected { background: rgb(132, 184, 226, 0.8); outline: 1px solid #5ca3df; color: black; }
+.Q_selected { background: rgba(132, 184, 226, 0.732); outline: 1px solid #5ca3df; color: black; box-shadow: 0 0 6px 1px #4990ff, inset 0 0 3px #1764dd; }
 .Q_selectable.Q_selected:hover { background: rgb(132, 184, 226, 0.5); }
 .Q_selected_partially { background: repeating-linear-gradient(45deg, rgb(132, 184, 226, 0.8),rgb(132, 184, 226, 0.8) 10px, rgba(63, 121, 168, 0.5) 10px, rgba(63, 121, 168, 0.5) 20px); }
 .Q_throb,
@@ -226,8 +226,10 @@ html[xmlns] .Q_clearfix { display: block; }
 .Q_forceDisplayNone { display: none !important; }
 
 /* the overlayed element */
-.Q_overlay { background: url(../img/bg/overlay.png); display:none; padding: 0; border: 2px solid #444; z-index: 9000;
- opacity: 1; border-radius: 7px; box-shadow: 0 0 20px #333; }
+.Q_overlay { 
+	background: url(../img/bg/overlay.png); display:none; padding: 0; border: 2px solid #444; z-index: 9000;
+	opacity: 1; border-radius: 7px; box-shadow: 0 0 20px #333; display: flex; flex-direction: column;
+}
 
 .Q_notMobile .Q_overlay { max-width: 500px; }
 .Q_mobile .Q_overlay { max-width: 95%; }
@@ -279,6 +281,8 @@ body.Q_preventScroll {
 .Q_dialog_content {
 	overflow: auto;
 	-webkit-overflow-scrolling: touch;
+	position: relative;
+	flex-grow: 2;
 }
 .Q_alert .Q_dialog_content,
 .Q_confirm .Q_dialog_content,
@@ -397,7 +401,9 @@ button:focus:disabled,
 button.basic16 { background-color: #eee; color: black; }
 .Q_notTouchscreen button.basic16:active { background-color: #ccc; color: black; }
 .Q_button { padding: 0.4em 1em 0.4em 1em; box-sizing: border-box; }
-input { box-sizing: border-box; }
+input { box-sizing: border-box; padding: 5px; border: solid 1px rgba(0, 0, 0, 0.2); border-radius: 5px; }
+input::placeholder { font-style: italic; }
+select { padding: 5px; border: solid 1px rgba(0, 0, 0, 0.2); border-radius: 5px; }
 
 .Q_aspect_who, .Q_aspect_who::before { color: #394ad5; border-color: #394ad5; }
 .Q_aspect_what, .Q_aspect_what::before { color: #bf1118; border-color: #bf1118; }
@@ -508,6 +514,7 @@ box-shadow:0 0 10px #000; }
 .Q_rating_tool div.Q_rating_star * { position: absolute; top: 0; right: 0; }
 .Q_rating_tool div.Q_rating_star_occlusion { width: 0; overflow: hidden; }
 .Q_paging_tool { text-align: center; }
+.Q_autogrow_container .Q_placeholders_container { width: 100 !important; }
 .Q_placeholders_container,
 .Q_placeholder { display: inline-block; color: #999; font-style: italic; zoom: 1; }
 .Q_placeholders_container input,
@@ -1101,7 +1108,7 @@ body.Q_columns_animationFX {
 	min-width: 200px;
 	transition: transform 200ms, opacity 200ms;
 }
-.Q_dialogs_animationFX .Q_overlay_open {
+.Q_dialogs_animationFX .Q_overlay.Q_overlay_open {
 	opacity: 1;
 	transform: scale(1);
 }
@@ -1115,5 +1122,21 @@ body.Q_columns_animationFX {
 	.Q_overlay a, .Q_fullscreen_dialog a {
 		color: white;
 		fill: white;
+	}
+	.Q_overlay select,
+	.Q_overlay input,
+	.Q_overlay textarea,
+	.Q_fullscreen_dialog select,
+	.Q_fullscreen_dialog input,
+	.Q_fullscreen_dialog textarea {
+		color: white;
+		background-color: rgba(0, 0, 0, 0.2);
+		border: solid 1px rgba(255, 255, 255, 0.2);
+	}
+	.Q_overlay input::placeholder,
+	.Q_fullscreen_dialog input::placeholder,
+	.Q_overlay textarea::placeholder,
+	.Q_fullscreen_dialog textarea::placeholder {
+		color: rgba(255, 255, 255, 0.5);
 	}
 }

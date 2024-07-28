@@ -68,7 +68,7 @@ Q.mixin(Base, Row);
  * @property ofParticipantRole
  * @type String|Buffer
  * @default ""
- * 
+ * to grant access to all stream participants with a given participantRole
  */
 /**
  * @property grantedByUserId

@@ -41,9 +41,11 @@ var dataKey_opening = 'opening';
  *  @param {Boolean} [options.fullscreen] Whether to use fullscreen mode on mobile phones, using document to scroll instead of relying on possibly buggy "overflow" CSS implementation. Defaults to true on Android stock browser, false everywhere else.
  *  @param {Boolean} [options.hideOverlappedColumns=true] Whether to hide background columns on mobile (perhaps improving browser rendering).
  *  @param {Boolean} [options.stretchFirstColumn=true] If true, stretch first column to whole page width if no other columns appear.
- *  @param {Boolean|String} [options.pagePushUrl] if this is true and the url of the column
+ *  @param {Boolean|String} [options.pagePushUrl=true] if this is true and the url of the column
  *    is specified, then Q.Page.push() is called with this URL. You can also pass a string here,
  *    to override the url (in case, for example, the url of the column is not specified, because it is rendered client-side).
+ *  @param {Boolean|Number} [options.pagePushUrlOnClose=300] Whether to call Q.Page.pushUrl(), if pagePushUrl is true as well
+ *    You can also put a number of milliseconds to wait and pushUrl (if pagePushUrl is true) as long as columns.open() isn't called during that time.
  *  @param {Q.Event} [options.beforeOpen] Event that happens before a column is opened. Return false to prevent opening. Receives (options, index).
  *  @param {Q.Event} [options.beforeClose] Event that happens before a column is closed. Receives (index, indexAfterClose, columnElement). Return false to prevent closing.
  *  @param {Q.Event} [options.onActivate] Event that happens after a column is opened and activated. Receives (options, index, columnElement).
@@ -133,13 +135,14 @@ Q.Tool.define("Q/columns", function(options) {
 	flat: false,
 	animation: { 
 		duration: 300, // milliseconds
+		scrollDuration: 300, //milliseconds
 		css: {
 			hide: {
 				opacity: 0.1, 
 				top: '40%',
 				height: '0'
 			}
-		},
+		}
 	},
 	delay: {
 		duration: 300 // until it's safe to register clicks
@@ -161,6 +164,7 @@ Q.Tool.define("Q/columns", function(options) {
 	columns: [],
 	controls: undefined,
 	pagePushUrl: true,
+	pagePushUrlOnClose: 300,
 	scrollbarsAutoHide: {},
 	closeFromTitleClick: false,
 	closeFromSwipeDown: true,
@@ -321,6 +325,7 @@ Q.Tool.define("Q/columns", function(options) {
 			controlsSlot = $('.Q_controls_slot', div)[0];
 			$div.attr('data-title', $(titleSlot).text() || document.title);
 		}
+		columnSlot.addClass('Q_content_container');
 		if (state.closeFromSwipeDown && index > 0) {
 			Q.addEventListener($title[0], 'touchstart', function (e1) {
 				var x1 = Q.Pointer.getX(e1);
@@ -665,24 +670,6 @@ Q.Tool.define("Q/columns", function(options) {
 				var $prev = $div.prev();
 				$div.css('z-index', parseInt($prev.css('z-index'))+1 || 1);
 				
-				if (Q.info.isMobile) {
-					$div.add($ct).css('width', '100%');
-				} else {
-					var width = 0;
-					var $toScroll = ($te.css('overflow') === 'visible')
-						? $te.parents()
-						: $te;
-					$toScroll.each(function () {
-						var $this = $(this);
-						$this.animate({
-							scrollLeft: this.scrollWidth
-						});
-						if ($this.css('overflow') !== 'visible') {
-							return false;
-						}
-					});
-				}
-				
 				$div.data(dataKey_lastShow, show)
 					.data(dataKey_opening, true);
 				tool.oldMinHeight = $div.css('min-height');
@@ -715,7 +702,31 @@ Q.Tool.define("Q/columns", function(options) {
 					$div.prev().addClass('Q_columns_overlapped');
 				}
 				$div.addClass('Q_columns_latest');
-				$div.prev().removeClass('Q_columns_latest');
+				$div.prevAll('.Q_columns_column').removeClass('Q_columns_latest');
+
+				setTimeout(function () {
+					if (Q.info.isMobile) {
+						$div.add($ct).css('width', '100%');
+					} else {
+						var width = 0;
+						var $toScroll = ($te.css('overflow') === 'visible')
+							? $te.parents()
+							: $te;
+						$toScroll.each(function () {
+							var $this = $(this);
+							if (o.animation.scrollDuration) {
+								$this.animate({
+									scrollLeft: this.scrollWidth
+								}, o.animation.scrollDuration);
+							} else {
+								this.scrollTo(this.scrollWidth, 0);
+							}
+							if ($this.css('overflow') !== 'visible') {
+								return false;
+							}
+						});
+					}
+				}, 0);
 			}
 
 			function afterAnimation($cs, $sc, $ct){
@@ -765,7 +776,8 @@ Q.Tool.define("Q/columns", function(options) {
 	 * @param {Function} callback Called when the column is closed, or if no column
 	 *  Receives (index, column) where the column could be null if it wasn't found.
 	 * @param {Object} options Can be used to override some values taken from tool state
-	 * @param {Boolean} [pagePushUrl=true] Set to false to not call Q.Page.push()
+	 * @param {Boolean} [pagePushUrlOnClose] Set to true to call Q.Page.push() even when closing a column
+ 	 *  You can also put a number of milliseconds to wait and pushUrl (if pagePushUrl is true) as long as columns.open() isn't called during that time.
 	 * @param {Boolean} skipUpdateAttributes Whether to skip updating the attributes
 	 *  of the tool element because some columns are about to be opened, and we want
 	 *  to avoid thrashing.
@@ -885,7 +897,15 @@ Q.Tool.define("Q/columns", function(options) {
 		function _close() {
 			Q.removeElement(div, true); // remove it correctly)
 
-			var data = tool.data(index);
+			if (!Q.info.isMobile) {
+				var ival = setInterval(function () {
+					tool.element.scrollTo(tool.element.scrollWidth, 0);
+				}, 25);
+				setTimeout(function () {
+					clearTimeout(ival);
+				}, state.animation.duration + 25);
+			}
+
 			presentColumn(tool);
 			Q.Pointer.clearSelection();
 			Q.handle(callback, tool, [index, div]);
@@ -893,7 +913,19 @@ Q.Tool.define("Q/columns", function(options) {
 			var url = $prev.attr('data-url') || $div.attr('data-prevUrl');
 			var title = $prev.attr('data-title') || $div.attr('data-prevTitle');
 			if (o.pagePushUrl && url && url !== location.href) {
-				Q.Page.push(url, title);
+				var t, k;
+				if (o.pagePushUrlOnClose == true) {
+					_pagePushUrl();
+				} else if (Number.isFinite(o.pagePushUrlOnClose)) {
+					t = setTimeout(_pagePushUrl);
+					k = state.beforeOpen.setOnce(function () {
+						clearInterval(t);
+					});
+				}
+				function _pagePushUrl() {
+					Q.Page.push(url, title);
+					state.beforeOpen.remove(k);
+				}
 			}
 			Q.layout(tool.element);
 			Q.Visual.animationStarted(state.animation.duration);
@@ -1038,6 +1070,8 @@ Q.Template.set('Q/columns/column',
 function presentColumn(tool, $column, fullscreen, recalculateHeights) {
 	var state = tool.state;
 	var $currentColumn = Q.getObject('$currentColumn', state);
+
+	$currentColumn.removeClass('Q_columns_overlapped');
 
 	if (!$column) {
 		$column = $currentColumn;
@@ -1194,7 +1228,7 @@ function _updateAttributes() {
 Q.invoke.handlers.unshift(function (options, methods) {
 	var index, columns;
 	var node = options.trigger;
-	if (!node) {
+	if (!node || (options && options.skipColumns)) {
 		return;
 	}
 
@@ -1216,8 +1250,9 @@ Q.invoke.handlers.unshift(function (options, methods) {
 		node = node.parentNode;
 	}
 	if (columns) {
-		columns.close({min: index+1}, null, {animation: {duration: 0}});
+		var closed = columns.close({min: index+1}, null, {animation: {duration: 0}});
 		columns.push(Q.extend({}, options, {
+			animation: closed ? { scrollDuration: 0 } : {},
 			column: options.content,
 			onActivate: options.onActivate || function () {}
 		}));

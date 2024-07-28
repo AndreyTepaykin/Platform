@@ -1004,12 +1004,29 @@ Elp.restoreSelections = function (deep) {
  * Check whether this Element comes before another one, in a certain context
  * @method isBefore
  * @param {Element} element
- * @param {Element} context optional containing element, defaults ot the document element
+ * @param {Element} context The method finds and traverses their mutual parent.
+ *   If you know the mutual parent element, you can pass it here directly.
  * @return {boolean}
  */
 Elp.isBefore = function (element, context) {
 	var before = true, that = this;
-	context = context || document.documentElement; // TODO: can triangulate a parentElement instead
+	if (!(context instanceof Element)) {
+		var a = this;
+		while (a) {
+			a = a.parentNode;
+			var b = element;
+			while (b) {
+				b = b.parentNode;
+				if (a === b) {
+					context = b;
+					break;
+				}
+			}
+			if (context) {
+				break;
+			}
+		}
+	}
 	Q.find(context, null, function (elem) {
 		if (elem === element) {
 			before = false;
@@ -1054,7 +1071,8 @@ Elp.removeClass = function (className) {
 };
 
 /**
- * Add a CSS class to an element
+ * Add a CSS class to an element.
+ * Can be string of CSS classes separated by spaces.
  * @method addClass
  * @chainable
  * @param {String} className
@@ -2341,7 +2359,7 @@ Q.calculateKey = function _Q_calculateKey(key, container, start) {
 			key = 'AUTOKEY_' + (++i);
 		}
 	} else if (key !== undefined && typeof key !== 'string') {
-		throw new Q.Error("Q.calculateKey: key must be a String, Q.Tool, true, or undefined");
+		throw new Q.Error("Q.calculateKey: key must be a String, Q.Tool, true, null, or undefined");
 	}
 	return key;
 };
@@ -3038,12 +3056,15 @@ Evp.occurring = false;
  * @param {String|Boolean|Q.Tool} key Optional key to associate with the handler.
  *  Used to replace handlers previously added under the same key.
  *  Also used for removing handlers with .remove(key).
- *  If the key is not provided, a unique one is computed.
  *  Pass true here to associate the handler to the current page,
  *  and it will be automatically removed when the current page is removed.
  *  Pass a Q.Tool object here to associate the handler to the tool,
  *  and it will be automatically removed when the tool is removed.
  *  But note that passing the same tool on same event again will overwrite the previous handler.
+ *  If the key is undefined, a unique one is computed.
+ *  However, if this function is being called while activating a tool or page,
+ *  then the key will be automatically derived from that tool, or page.
+ *  Pass null (instead of leaving key undefined) to avoid this.
  * @param {boolean} prepend If true, then prepends the handler to the chain
  * @return {String|null} The key under which the handler was set, or null if handler and key were both empty
  */
@@ -3093,10 +3114,15 @@ Evp.set = function _Q_Event_prototype_set(handler, key, prepend) {
  * @param {String|Boolean|Q.Tool} Optional key to associate with the handler.
  *  Used to replace handlers previously added under the same key.
  *  Also used for removing handlers with .remove(key).
- *  If the key is not provided, a unique one is computed.
+ *  Pass true here to associate the handler to the current page,
+ *  and it will be automatically removed when the current page is removed.
  *  Pass a Q.Tool object here to associate the handler to the tool,
  *  and it will be automatically removed when the tool is removed.
  *  But note that passing the same tool on same event again will overwrite the previous handler.
+ *  If the key is undefined, a unique one is computed.
+ *  However, if this function is being called while activating a tool or page,
+ *  then the key will be automatically derived from that tool, or page.
+ *  Pass null (instead of leaving key undefined) to avoid this.
  * @param {boolean} prepend If true, then prepends the handler to the chain
  * @return {String|null} The key under which the handler was set, or null if handler is empty
  */
@@ -3126,7 +3152,7 @@ Evp.setOnce = function _Q_Event_prototype_setOnce(handler, key, prepend) {
 	return key = event.set(function _setOnce() {
 		handler.apply(this, arguments);
 		event.remove(key);
-	}, key, prepend);
+	}, key === undefined ? null : key, prepend);
 };
 
 /**
@@ -4450,7 +4476,9 @@ Q.getter = function _Q_getter(original, options) {
 		gw.cache = null;
 	} else if (gw.cache === true || gw.cache === undefined) {
 		// create our own Object that will cache locally in the page
-		gw.cache = Q.Cache.document(++_Q_getter_i);
+		gw.cache = Q.Cache.document('Q_getter_' + (++_Q_getter_i));
+	} else if (gw.cache && (!gw.cache.get || !gw.cache.set || !gw.cache.clear)) {
+		gw.cache = Q.Cache.document('Q_getter_' + (++_Q_getter_i), options && options.cache);
 	} // else assume we were passed an Object that supports the cache interface
 
 	gw.throttle = gw.throttle || null;
@@ -4511,15 +4539,19 @@ Q.getter.THROTTLING = 3;
  * Custom exception constructor
  * @class Q.Exception
  * @constructor
- * @param [message=""] {string} The error message
- * @param {object} fields={}
+ * @param {String} [message=""] The error message
+ * @param {Object} fields={} Any additional fields to set on the error
  */
 Q.Exception = function (message, fields) {
-	this.fields = fields || {};
+	if (fields) {
+		for (var k in fields) {
+			this[k] = fields[k];
+		}
+	}
 	this.message = message || "";
 };
 
-Q.Exception.prototype = Error;
+Q.Exception.prototype = Error.prototype;
 
 /**
  * The root mixin added to all tools.
@@ -7101,7 +7133,7 @@ Cp.removeEach = function _Q_Cache_prototype_each(args, options) {
 };
 Q.Cache.document = function _Q_Cache_document(name, max, options) {
 	if (!Q.Cache.document.caches[name]) {
-		var cache = Q.Cache.document.caches[name] = new Q.Cache(Q.extend({
+		Q.Cache.document.caches[name] = new Q.Cache(Q.extend({
 			max: max,
 			name: name
 		}, options));
@@ -8801,7 +8833,7 @@ Q.action = function _Q_action(uri, fields, options) {
  *  * @param {String} [options.method] if set, adds a &Q.method=$method to the querystring
  *  * @param {String|Function} [options.callback] if a string, adds a "&Q.callback="+encodeURIComponent(callback) to the querystring.
  *  * @param {Boolean} [options.iframe] if true, tells the server to render the response as HTML in an iframe, which should call the specified callback
- *  * @param {String} [options.loadExtras] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load, can also be "response", "session" or "response,session"
+ *  * @param {String} [options.loadExtras] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load, can also be "response", "initial", "session" or "initial,session"
  *  * @param {Array} [options.idPrefixes] optional array of Q_Html::pushIdPrefix values for each slotName
  *  * @param {number} [options.timestamp] whether to include a timestamp (e.g. as a cache-breaker)
  * @return {String|Object}
@@ -8961,7 +8993,7 @@ Q.req = function _Q_req(uri, slotNames, callback, options) {
  * @param {boolean} [options.parse] set to false to pass the unparsed string to the callback
  * @param {boolean} [options.asJSON] set to true to have the payload be encoded as JSON, if method is not "GET"
  * @param {boolean} [options.extend=true] if false, the URL is not extended with Q fields.
- * @param {String} [options.loadExtras=null] if "all", asks the server to load any extra scripts, stylesheets, etc. that are loaded on first page load. Can also be "request", "session" or "request,session"
+ * @param {String} [options.loadExtras=null] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load, can also be "response", "initial", "session" or "initial,session"
  * @param {boolean} [options.query=false] if true simply returns the query url without issuing the request
  * @param {String} [options.callbackName] if set, the URL is not extended with Q fields and the value is used to name the callback field in the request.
  * @param {boolean} [options.duplicate=true] you can set it to false in order not to fetch the same url again
@@ -9097,11 +9129,11 @@ Q.request = function (url, slotNames, callback, options) {
 			t.cancelled = true;
 			_onResponse();
 			var errors = {
-				errors: [{
+				errors: [Q.extend({}, data && data.errors[0], {
 					message: msg || "Request was canceled",
 					code: code || status,
 					httpStatus: status
-				}]
+				})]
 			};
 			o.onCancel.handle.call(this, errors, o);
 			_Q_Response_callback.call(this, errors, errors);
@@ -9240,13 +9272,13 @@ Q.request.once = Q.getter(Q.request, {
 });
 
 /**
- * Try to find an error message assuming typical error data structures for the arguments
+ * Try to find an error assuming typical error data structures for the arguments
  * @static
- * @method firstErrorMessage
+ * @method firstError
  * @param {Object} data An object where the errors may be found. You can pass as many of these as you want. If it contains "errors" property, then errors[0] is the first error. If it contains an "error" property, than that's the first error. Otherwise, for the first argument only, if it is nonempty, then it's considered an error.
  * @return {String|null} The first error message found, or null
  */
-Q.firstErrorMessage = function _Q_firstErrorMessage(data /*, data2, ... */) {
+Q.firstError = function _Q_firstErro(data /*, data2, ... */) {
 	var error = undefined;
 	for (var i=0; i<arguments.length; ++i) {
 		var d = arguments[i];
@@ -9264,12 +9296,24 @@ Q.firstErrorMessage = function _Q_firstErrorMessage(data /*, data2, ... */) {
 			break;
 		}
 	}
+	return error || undefined;
+};
+
+/**
+ * Try to find an error message assuming typical error data structures for the arguments
+ * @static
+ * @method firstErrorMessage
+ * @param {Object} data An object where the errors may be found. You can pass as many of these as you want. If it contains "errors" property, then errors[0] is the first error. If it contains an "error" property, than that's the first error. Otherwise, for the first argument only, if it is nonempty, then it's considered an error.
+ * @return {String|null} The first error message found, or null
+ */
+Q.firstErrorMessage = function _Q_firstErrorMessage(data /*, data2, ... */) {
+	var error = Q.firstError.apply(this, arguments);
 	if (!error) {
 		return undefined;
 	}
 	return (typeof error === 'string')
 		? error
-		: (error.message ? error.message : JSON.stringify(error));
+		: (error && error.message ? error.message : JSON.stringify(error));
 };
 
 /**
@@ -9918,7 +9962,7 @@ Q.findScript = function (src) {
  * @return {Object} object with properties "src", "path" and "file"
  */
 Q.currentScript = function (stackLevels) {
-	var src = Q.currentScript.src || Q.getObject('document.currentScript.src');
+	var src = window._Q_currentScript_src || Q.getObject('document.currentScript.src');
 	if (!src) {
 		var index = 0, lines, i, l;
 		try {
@@ -10614,7 +10658,7 @@ Q.activate = function _Q_activate(elem, options, callback, internal) {
  * @param {boolean} [options.ignoreHash=false] if true, does not navigate to the hash part of the URL in browsers that can support it
  * @param {Object} [options.fields] additional fields to pass via the querystring
  * @param {Object} [options.formdata] if set, instead of fields, submits the formdata (including multipart form-data such as files, etc.) 
- * @param {String} [options.loadExtras=null] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load. Can also be "request", "session" or "request,session"
+ * @param {String} [options.loadExtras=null] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load, can also be "response", "initial", "session" or "initial,session"
  * @param {Number|boolean} [options.timeout=1500] milliseconds to wait for response, before showing cancel button and triggering onTimeout event, if any, passed to the options
  * @param {boolean} [options.quiet=false] if true, allows visual indications that the request is going to take place.
  * @param {String|Array} [options.slotNames] an array of slot names to request and process (default is all slots in Q.info.slotNames)
@@ -10721,7 +10765,7 @@ Q.loadUrl = function _Q_loadUrl(url, options) {
 			return; // a newer request was sent
 		}
 		if (!Q.isEmpty(err)) {
-			e = Q.firstErrorMessage(err);
+			e = new Q.Exception(Q.firstErrorMessage(err), Q.firstError(err));
 			_reject && _reject(e);
 			return Q.handle(onError, this, [e]);
 		}
@@ -11046,7 +11090,7 @@ Q.loadUrl.loading = {};
  *	Note: this will still not supress loading of external websites done with other means, such as window.location
  *  @param {Object} [options.fields] optional fields to pass with any method other than "get"
  *  @param {String|Function} [options.callback] if a string, adds a '&Q.callback='+encodeURIComponent(callback) to the querystring. If a function, this is the callback.
- *  @param {String} [options.loadExtras="all"] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load. Can also be "request", "session" or "request,session"
+ *  @param {String} [options.loadExtras="session"] if "all", asks the server to load the extra scripts, stylesheets, etc. that are loaded on first page load, can also be "response", "initial", "session" or "initial,session"
  *  @param {String} [options.target] the name of a window or iframe to use as the target. In this case callables is treated as a url.
  *  @param {String|Array} [options.slotNames] a comma-separated list of slot names, or an array of slot names
  *  @param {boolean} [options.quiet] defaults to false. If true, allows visual indications that the request is going to take place.
@@ -11124,7 +11168,8 @@ Q.loadUrl.loading = {};
 					if (callables.search(baseUrl) === 0) {
 						// Use AJAX to refresh the page whenever the request is for a local page
 						Q.loadUrl(callables, Q.extend({
-							loadExtras: 'all',
+							// shouldn't need to re-load responseExtras, they're the same across sessions
+							loadExtras: 'session',
 							ignoreHistory: false,
 							onActivate: function () {
 								if (callback) callback();
@@ -11408,7 +11453,7 @@ function _activateTools(toolElement, options, shared) {
 		}
 		if (pendingParentEvent) {
 			var eventKey = toolId + ' ' + toolName;
-			var eventKeyPrefix = 0;
+			var eventKeyPrefix = 2;
 			// in order to avoid replace handlers in pendingParentEvent we need to avoid adding handlers with same keys
 			// So while key exists in pendingParentEvent.keys we update new id with counter.
 			while(pendingParentEvent.keys.includes(eventKey)) {
@@ -14147,7 +14192,9 @@ Q.Visual = Q.Pointer = {
                     Q.each(imgs, function (i, img) {
                         if (typeof img.target === 'string') {
                             img.target = document.querySelector(img.target);
-                        }
+                        } else if (!img.target) {
+							return;
+						}
                         var point;
                         var target = img.target;
                         if (Q.instanceOf(target, Element)) {
@@ -14603,7 +14650,9 @@ function _handleScroll(event) {
 	setTimeout(_setRecentlyScrolledFalse, 100);
 	var shouldStopCancelClick = !Q.Pointer.movedTooMuchForClickLastTime
 		&& !Q.Pointer.startedWhileRecentlyScrolled;
-	Q.Pointer.cancelClick(true, null, null, shouldStopCancelClick ? 300 : 0);
+	Q.Pointer.cancelClick(true, null, {
+		comingFromScroll: true
+	}, shouldStopCancelClick ? 300 : 0);
 }
 
 function _stopHint(img, container) {
@@ -14992,6 +15041,7 @@ Q.Dialogs = {
 				title = dialog.querySelector('.Q_title_slot');
 				contentElement = dialog.querySelector('.Q_dialog_slot');
 			}
+			contentElement.addClass('Q_content_container');
 			var $dialog = $(dialog);
 			if (o.title) {
 				if (typeof o.title === 'string') {
@@ -15157,6 +15207,7 @@ Q.Dialogs.push.options = {
 * @return {HTMLElement} The HTML element of the dialog that was just pushed.
  */
 Q.alert = function(message, options) {
+	message = String(message);
 	if (options === undefined) options = {};
 	if (options.title === undefined) {
 		options.title = Q.alert.options.title;
@@ -15543,8 +15594,8 @@ Aup.recorderInit = function (options) {
 
 	// load recorder
 	Q.addScript("{{Q}}/js/audioRecorder/recorder.js", function(){
-	//new Recorder({leaveStreamOpen: true, encoderPath: Q.url("{{Q}}/js/audioRecorder/encoderWorker.min.js")}); - ogg format encoder
-		tool.recorder = tool.recorder || new Recorder({leaveStreamOpen: true, encoderPath: Q.url("{{Q}}/js/audioRecorder/recorderWorkerMP3.js")}); // mp3 format encoder
+		tool.recorder = tool.recorder || new Recorder({leaveStreamOpen: true, encoderPath: Q.url("{{Q}}/js/audioRecorder/encoderWorker.js")}); // ogg format encoder
+		//tool.recorder = tool.recorder || new Recorder({leaveStreamOpen: true, encoderPath: Q.url("{{Q}}/js/audioRecorder/recorderWorkerMP3.js")}); // mp3 format encoder
 
 		tool.recorder.addEventListener("streamReady", function(e){
 			if (typeof options.onStreamReady === "function") options.onStreamReady.call();

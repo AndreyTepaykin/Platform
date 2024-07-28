@@ -22,19 +22,21 @@ function Streams_after_Users_User_saveExecute($params)
 	}
 
 	// if we only modified some inconsequential fields, no need to proceed
-	$mf = $modifiedFields;
-	unset($mf['updatedTime']);
-	unset($mf['signedUpWith']);
-	unset($mf['pincodeHash']);
-	unset($mf['emailAddressPending']);
-	unset($mf['mobileNumberPending']);
-	unset($mf['sessionId']);
-	unset($mf['sessionCount']);
-	unset($mf['insertedTime']);
-	if (empty($mf)) {
-		$processing = false;
-		Db::allowCaching($prevAllowCaching);
-		return;
+	if (!$params['inserted']) {
+		$mf = $modifiedFields;
+		unset($mf['updatedTime']);
+		unset($mf['signedUpWith']);
+		unset($mf['pincodeHash']);
+		unset($mf['emailAddressPending']);
+		unset($mf['mobileNumberPending']);
+		unset($mf['sessionId']);
+		unset($mf['sessionCount']);
+		unset($mf['insertedTime']);
+		if (empty($mf)) {
+			$processing = false;
+			Db::allowCaching($prevAllowCaching);
+			return;
+		}
 	}
 
 	// some standard values
@@ -191,7 +193,7 @@ function Streams_after_Users_User_saveExecute($params)
 	Streams::createStreams($user->id, $user->id, $toCreate);
 	Streams::join($user->id, $user->id, $streamsToJoin);
 	Streams::subscribe($user->id, $user->id, $streamsToSubscribe, array('skipAccess' => true));
-	usleep(1); // garbage collection
+	Q_Utils::garbageCollect();
 	
 	if ($params['inserted']) {
 		

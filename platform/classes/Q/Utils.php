@@ -1754,6 +1754,10 @@ class Q_Utils
 			exec('mklink ' . $pswitch . ' "' . $link . '" "' . $target . '"');
 		}
 
+		if (self::$echoVerbose) {
+			echo "Made symlink $link -> $target" . PHP_EOL;
+		}
+
 		if (!file_exists($link)) {
 			throw new Q_Exception("Link $link to target $target was not created");
 		}
@@ -2064,6 +2068,18 @@ class Q_Utils
 		return uksort($arr, array('Q_Utils', 'compareKeysByLargestNumber'));
 	}
 
+	/**
+	 * Call this function to attempt garbage collection
+	 * @method garbageCollect
+	 * @static
+	 */
+	static function garbageCollect()
+	{
+		if (is_callable('gc_collect_cycles')) {
+			gc_collect_cycles();
+		}
+	}
+
 	private static function compareKeysNumerically($a, $b)
 	{
 		$ap = preg_split('/\D/', $a, -1);
@@ -2098,5 +2114,7 @@ class Q_Utils
 	protected static $urand;
 	protected static $sockets = array();
 	
-	public $nodeUrlRouters = array();
+	public static $nodeUrlRouters = array();
+
+	public static $echoVerbose = false;
 }

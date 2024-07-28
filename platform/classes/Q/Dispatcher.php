@@ -213,9 +213,7 @@ class Q_Dispatcher
 			$redirectKey = Q_Request::isAjax() ? 'json' : 'html';
 			if (empty($sessionId)) {
 				$redirectKey = 'landing';
-			} else if ($prefix = Q_Config::get(
-				'Q', 'session', 'id', 'prefixes', 'authenticated', null
-			) and Q::startsWith($sessionId, $prefix)) {
+			} else if (Q_Session::isAuthenticated()) {
 				$redirectKey .= '.authenticated';
 			}
 			if ($redirectSuffix = Q_Config::get(
@@ -434,6 +432,18 @@ class Q_Dispatcher
 						return false;
 					}
 				}
+
+				// You can gather some metrics here, and store them somewhere
+				$eventName = 'Q/metrics';
+				self::startSessionBeforeEvent($eventName);
+				if (!isset(self::$skip[$eventName])) {
+					/**
+					 * Gives the app a chance to gather analytics from the request.
+					 * @event Q/metrics
+					 * @param {array} $routed
+					 */
+					Q::event($eventName, self::$routed, true);
+				}
 				
 				// When handling all further events, you should probably
 				// refrain from changing server state, and only do reading.
@@ -441,18 +451,6 @@ class Q_Dispatcher
 				// for which the client is responsible.
 
 				self::response();
-				
-				// You can calculate some analytics here, and store them somewhere
-				$eventName = 'Q/analytics';
-				self::startSessionBeforeEvent($eventName);
-				if (!isset(self::$skip[$eventName])) {
-					/**
-					 * Gives the app a chance to gather analytics from the request.
-					 * @event Q/analytics
-					 * @param {array} $routed
-					 */
-					Q::event($eventName, self::$routed, true);
-				}
 
 				return true;
 			} catch (Q_Exception_DispatcherForward $e) {
@@ -690,11 +688,11 @@ class Q_Dispatcher
 			self::$skip = $e->skip;
 		} else {
 			// Don't process any non-GET methods this time around,
-			// Do not collect any analytics
+			// Do not collect any metrics
 			// And also ignore any accumulated errors
 			self::$skip = array(
 				'Q/method' => true,
-				'Q/analytics' => true,
+				'Q/metrics' => true,
 				'Q/errors' => true
 			);
 		}

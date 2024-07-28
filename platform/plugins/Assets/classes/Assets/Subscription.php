@@ -225,22 +225,11 @@ class Assets_Subscription {
 	 * @return {boolean|Array}
 	 */
 	static function checkStreamRelated ($stream) {
-		$relations = Streams_RelatedTo::select()->where(array(
+		list($relations, $plans) = $stream->related(null, false, array(
 			'type' => self::$relationType,
-			'fromPublisherId' => $stream->publisherId,
-			'fromStreamName' => $stream->name
-		))->fetchDbRows();
-
-		if (empty($relations)) {
-			return false;
-		}
-
-		$assetsPlans = [];
-		foreach ($relations as $relation) {
-			$assetsPlans[] = Streams::fetchOne(null, $relation->toPublisherId, $relation->toStreamName, true);
-		}
-
-		return $assetsPlans;
+			'skipAccess' => true
+		));
+		return $relations ? $plans : false;
 	}
 
 	/**
@@ -253,40 +242,40 @@ class Assets_Subscription {
 	 * @throws Exception
 	 */
 	static function checkStreamPaid ($stream, $user, $throwIfNotPaid=false) {
-		if ($user) {
-			if (is_string($user)) {
-				$user = Users_User::fetch($user, true);
-			}
-		} else {
-			$user = Users::loggedInUser(true);
-		}
-
-		// admins have access
-		if (self::isAdmin($user->id)) {
-			return true;
-		}
-
 		$assetsPlans = self::checkStreamRelated($stream);
 		if (!(boolean)$assetsPlans) {
 			return true;
 		}
-
-		foreach ($assetsPlans as $assetsPlan) {
-			$subscriptionStream = self::getStream($assetsPlan, $user);
-			if (!$subscriptionStream) {
-				continue;
+		if ($user) {
+			if (is_string($user)) {
+				$user = Users_User::fetch($user, true);
 			}
-
-			if (self::isCurrent($subscriptionStream)) {
+			
+			// admins have access
+			if ($user and self::isAdmin($user->id)) {
 				return true;
 			}
+
+			foreach ($assetsPlans as $assetsPlan) {
+				$subscriptionStream = self::getStream($assetsPlan, $user);
+				if (!$subscriptionStream) {
+					continue;
+				}
+
+				if (self::isCurrent($subscriptionStream)) {
+					return true;
+				}
+			}
+
 		}
 
 		if ($throwIfNotPaid) {
 			$text = Q_Text::get("Assets/content");
-			throw new Exception(Q::interpolate($text['errors']['SubscriptionStreamNotPaid'], array(
-				"subscriptionUrl" => '<a href="'.Q_Uri::url("Assets/subscription").'">here</a>'
-			)));
+			throw new Assets_Exception_PaymentRequired(array(
+				'publisherId' => $stream->publisherId,
+				'streamName' => $stream->name,
+				'subscriptionPlans' => Db::exportArray($assetsPlans)
+			));
 		}
 
 		return false;

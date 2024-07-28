@@ -49,6 +49,7 @@ function Q_response($params)
 		}
 	}
 
+	Q_Response::processInitialExtras('before');
 	Q_Response::processResponseExtras('before');
 	Q_Response::processSessionExtras('before');
 
@@ -76,7 +77,7 @@ function Q_response($params)
 	if ($isAjax) {
 		$to_encode = array();
 		if (Q_Response::$redirected) {
-			// We already called Q_Response::redirect from Q/response
+			// We already called Q_Response::redirect while handling previous events
 			$to_encode['redirect']['url'] = Q_Uri::url(Q_Response::$redirected);
 			try {
 				$to_encode['redirect']['uri'] = Q_Uri::from(Q_Response::$redirected)->toArray();
@@ -85,19 +86,27 @@ function Q_response($params)
 			}
 		}
 		if (is_array($slotNames)) {
-			foreach ($slotNames as $slotName) {
-				Q_Response::fillSlot($slotName, 'default',
-					Q::ifset($idPrefixes, $slotName, null)
-				);
-			}
-			// Go through the slots again, because other handlers may have overwritten
-			// their contents using Q_Response::setSlot()
-			foreach ($slotNames as $sn) {
-				Q_Response::fillSlot($sn, 'default',
-					Q::ifset($idPrefixes, $slotName, null)
-				);
+			try {
+				foreach ($slotNames as $slotName) {
+					Q_Response::fillSlot($slotName, 'default',
+						Q::ifset($idPrefixes, $slotName, null)
+					);
+				}
+				// Go through the slots again, because other handlers may have overwritten
+				// their contents using Q_Response::setSlot()
+				foreach ($slotNames as $sn) {
+					Q_Response::fillSlot($sn, 'default',
+						Q::ifset($idPrefixes, $slotName, null)
+					);
+				}
+			} catch (Exception $e) {
+				if (!($e instanceof Q_Exception_MissingSlot)
+				or !Q_Response::$redirected) {
+					throw $e; // otherwise, just ignore missing slots, since we are redirecting anyway
+				}
 			}
 			if (Q_Request::shouldLoadExtras()) {
+				Q_Response::processInitialExtras('after');
 				Q_Response::processResponseExtras('after');
 				Q_Response::processSessionExtras('after');
 				$to_encode['slots'] = Q_Response::slots(true);
@@ -139,8 +148,8 @@ function Q_response($params)
 				}
 			}
 		}
-		if (Q_Response::$redirected) {
-			// We already called Q_Response::redirect
+		if (empty($to_encode['redirect']) and Q_Response::$redirected) {
+			// We called Q_Response::redirect while rendering page
 			$to_encode['redirect']['url'] = Q_Uri::url(Q_Response::$redirected);
 			try {
 				$to_encode['redirect']['uri'] = Q_Uri::from(Q_Response::$redirected)->toArray();
@@ -230,6 +239,7 @@ Q.init();
 		return;
 	}
 
+	Q_Response::processInitialExtras('after');
 	Q_Response::processResponseExtras('after');
 	Q_Response::processSessionExtras('after');
 

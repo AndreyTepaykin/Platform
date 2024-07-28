@@ -181,7 +181,7 @@
 .Streams_participants_tool {
 	padding: 0 5px;
 	overflow: hidden;
-	height: 58px;
+	height: 60px;
 	text-align: left;
 }
 
@@ -828,4 +828,15 @@
 }
 .basic32_metrics {
 	background-position: 0 -1164px;
+}
+
+
+.Q_overlay.Streams_topic_streams_pdf,
+.Q_overlay.Streams_topic_streams_image
+.Q_overlay.Streams_topic_streams_video,
+.Q_overlay.Streams_chat_streams_pdf,
+.Q_overlay.Streams_chat_streams_image,
+.Q_overlay.Streams_chat_streams_video {
+	min-width: 90% !important;
+	min-height: 90% !important;
 }

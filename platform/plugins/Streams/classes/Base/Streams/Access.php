@@ -59,7 +59,7 @@ abstract class Base_Streams_Access extends Db_Row
 	 * @property $ofParticipantRole
 	 * @type string
 	 * @default ""
-	 * 
+	 * to grant access to all stream participants with a given participantRole
 	 */
 	/**
 	 * @property $grantedByUserId

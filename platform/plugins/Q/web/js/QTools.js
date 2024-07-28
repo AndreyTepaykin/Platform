@@ -300,6 +300,7 @@
 			{	
 				Q.Contextual.startEventHandler = function(e)
 				{
+					Q.Contextual.cancelClick = false;
 					if (!(Q.Contextual.current !== -1 && !Q.Contextual.justShown))
 					{
 						return;
@@ -354,6 +355,10 @@
 					{
 						conOffset.top -= window.scrollY;
 						triggerOffset.top -= window.scrollY;
+					}
+
+					if (info.curScroll !== 'scroller') {
+						Q.Contextual.cancelClick = true;
 					}
 
 					var event = (Q.info.useTouchEvents ? e.originalEvent.changedTouches[0] : e);
@@ -450,6 +455,8 @@
 			
 				Q.Contextual.endEventHandler = function(e)
 				{
+					var cancelClick = Q.Contextual.cancelClick;
+					Q.Contextual.cancelClick = cancelClick;
 					$('.Q_contextual_selected.Q_selected')
 					.removeClass('Q_contextual_selected Q_selected');
 					if ($(e.target).hasClass('Q_contextual_inactive')) {
@@ -515,7 +522,9 @@
 
 						if (element)
 						{
-							Q.Contextual.itemSelectHandler(element, event);
+							if (!cancelClick) {
+								Q.Contextual.itemSelectHandler(element, event);
+							}
 						}
 						else
 						{

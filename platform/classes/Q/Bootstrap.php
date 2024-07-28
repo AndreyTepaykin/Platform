@@ -141,7 +141,7 @@ class Q_Bootstrap
 	{
 		if ($error = error_get_last()) {
 			Q::log($error, 'fatal');
-			header('PHP Fatal Error', true, 500); // do not expose the error contents
+			header('X-Error: PHP Fatal Error', true, 500); // do not expose the error contents
 		}
 		/**
 		 * @event Q/shutdown {before}
@@ -241,6 +241,7 @@ class Q_Bootstrap
 			$plugin = is_numeric($k) ? $v : $k;
 			$plugin_path = Q::realPath('plugins'.DS.$plugin);
 			if (!$plugin_path) {
+				require_once(Q_CLASSES_DIR.DS.'Q'.DS.'Exception'.DS.'MissingPlugin.php');
 				throw new Q_Exception_MissingPlugin(@compact('plugin'));
 			}
 			array_splice($paths, 1, 0, array($plugin_path));

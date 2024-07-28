@@ -138,6 +138,13 @@ Q.text.Streams = {
  * Can play stream in a player
  * @property READ_LEVEL.messages
  * @type integer
+ * @default 35
+ * @final
+ */
+/**
+ * Can see other users' play receipts
+ * @property READ_LEVEL.messages
+ * @type integer
  * @default 40
  * @final
  */
@@ -154,8 +161,9 @@ Streams.READ_LEVEL = {
 	'content':		20, // can see the stream's content
 	'relations':	25,	// can see relations to other streams
 	'participants':	30, // can see participants in the stream
-	'messages':		40, // can play stream in a player
-	'max':	  	40  // max read level
+	'messages':		35, // can play stream in a player,
+	'receipts':     40, // can see other users' play receipts
+	'max':          40  // max read level
 };
 
 /**
@@ -185,10 +193,17 @@ Streams.READ_LEVEL = {
  * @final
  */
 /**
- * Can post messages, but manager must approve
+ * Can privately suggest actions for stream managers to consider
  * @property WRITE_LEVEL.suggest
  * @type integer
- * @default 15
+ * @default 14
+ * @final
+ */
+/**
+ * Can send ephemeral payloads to the stream to be broadcast
+ * @property WRITE_LEVEL.ephemeral
+ * @type integer
+ * @default 16
  * @final
  */
 /**
@@ -266,8 +281,9 @@ Streams.WRITE_LEVEL = {
 	'none':			0,		// cannot affect stream or participants list
 	'join':			10,		// can become a participant, chat, and leave
 	'vote':		    13,		// can vote for a relation message posted to the stream
+	'suggest':      14, 	// can privately suggest actions for stream admins to consider
+	'ephemeral':    16, 	// can send ephemeral payloads to the stream to be broadcast
 	'contribute':	18,		// can contribute to the stream (e.g. "join the stage")
-	'ephemeral':    19, 	// can send ephemeral payloads to the stream to be broadcast
 	'post':			20,		// can post durable messages which take effect immediately
 	'relate':	    23,		// can relate other streams to this one
 	'relations':	25,		// can update weights and relations directly
@@ -1080,6 +1096,53 @@ Streams.Tool = Q.Method.define({
 });
 
 /**
+ * Does querySelectorAll for elements corresponding to Streams/preview tools.
+ * Use Q.each() with the result.
+ * @method previews
+ * @static
+ * @param {String} streamName
+ * @return NodeList
+ */
+Streams.Tool.previews = function (publisherId, streamName, callback) {
+	return document.querySelectorAll(
+		".Streams_preview_tool[data-publisherid='"
+		+ publisherId.encodeHTML() + "'][data-streamname='" 
+		+ streamName.encodeHTML() + "']"
+	);
+};
+
+Streams.Tool.highlightPreviews = function (toolName, options) {
+	return Q.Tool.onActivate(toolName).set(function () {
+		var o = options || {};
+		var tool = this;
+		var state = tool.state;
+		var addClassToPreviews = o.addClassToPreviews || 'Q_selected';
+		Q.each(Streams.Tool.previews(state.publisherId, state.streamName), function () {
+			if ((!o.filter || o.filter(this))
+			&& !this.hasClass('Streams_internal_preview')) {
+				this.addClass(addClassToPreviews);
+			}
+		});
+		Q.Tool.onActivate('Streams/preview').set(function () {
+			if ((!o.filter || o.filter(this))
+			&& this.state.publisherId == state.publisherId
+			&& this.state.streamName == state.streamName
+			&& !this.element.hasClass('Streams_internal_preview')) {
+				this.element.addClass(addClassToPreviews);
+			}
+		}, o.key);
+		if (!o.filter || o.filter(this)) {
+			tool.Q.beforeRemove.setOnce(function () {
+				var state = this.state;
+				Q.each(Streams.Tool.previews(state.publisherId, state.streamName), function () {
+					this.removeClass(addClassToPreviews);
+				});
+			}, o.key);
+		}
+	});
+};
+
+/**
  * @class Streams
  */
 
@@ -1233,6 +1296,9 @@ Streams.get = Q.getter(function _Streams_get(publisherId, streamName, callback, 
 }, {
 	callbackIndex: 2,
 	throttle: 'Streams.get',
+	cache: {
+		
+	},
 	prepare: function (subject, params, callback) {
 		if (Streams.isStream(subject)) {
 			return callback(subject, params);

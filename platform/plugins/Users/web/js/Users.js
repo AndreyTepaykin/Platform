@@ -17,7 +17,8 @@
 		icon: {
 			defaultSize: 40 // might be overridden, but is required by some tools
 		},
-		roles: {}
+		roles: {},
+		urls: {}
 	};
     
 	var dc = Q.extend.dontCopy;
@@ -1069,6 +1070,11 @@
 		return label.startsWith(Label.externalPrefix);
 	};
 
+	Label.labelTitle = function (label) {
+		return Q.getObject([label, 'title'], Q.Users.labels)
+			|| label.split('/').pop().toCapitalized();
+	};
+
 	Label.get = new Q.Method();
 	Label.add = new Q.Method();
 	Label.update = new Q.Method();
@@ -2036,7 +2042,7 @@
 					host: location.host,
 					timestamp: Math.floor(Date.now() / 1000)
 				});
-				(new ethers.providers.Web3Provider(provider))
+				(new ethers.providers.Web3Provider(provider, 'any'))
 				.listAccounts().then(function (accounts) {
 					var web3Address = Q.cookie('Q_Users_web3_address') || '';
 					if (web3Address && accounts.includes(web3Address)) {
@@ -2619,6 +2625,7 @@
 	Users.disconnect.web3 = Web3.disconnect;
 
 	Q.onReady.add(function () {
+		Users.urls.onComplete = Q.urls['Communities/home'];
 		Users.Facebook.construct();
 		_subscribeToEvents(window.ethereum || Web3.ethereumProvider);
 	}, 'Users');

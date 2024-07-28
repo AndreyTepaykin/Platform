@@ -447,6 +447,10 @@ function _continue(tool, callback) {
 			--tool.state.count;
 			tool.stateChanged('count');
 		}, tool);
+		if (!stream.testReadLevel('participants')) {
+			state.showSummary = false;
+			tool.stateChanged('count');
+		}
 		var si = state.invite;
 		if (!si || !stream.testAdminLevel('invite')) {
 			Q.handle(callback, tool, []);

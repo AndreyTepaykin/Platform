@@ -1330,8 +1330,8 @@ class Q_Response
 					Q::includeFile($filename);
 				} catch (Exception $e) {}
 				$src_json = json_encode($src, JSON_UNESCAPED_SLASHES);
-				$currentScriptCode = "window.Q && Q.currentScript && (Q.currentScript.src = $src_json);\n\n";
-				$currentScriptEndCode = "\n\nwindow.Q && Q.currentScript && (Q.currentScript.src = null);";
+				$currentScriptCode = "window._Q_currentScript_src = $src_json;\n\n";
+				$currentScriptEndCode = "\n\ndelete window._Q_currentScript_src";
 				$scripts_for_slots[$slot][$src] = ''
 					. $currentScriptCode
 			 		. $ob->getClean()
@@ -1942,11 +1942,30 @@ class Q_Response
 		Q::event('Q/responseExtras', array(), $hookType);
 		return true;
 	}
+
+	/**
+	 * Used mostly internally, to determine whether or not we should be firing the
+	 * Q/initialExtras handlers, to add data to a top-level page load (not AJAX).
+	 * @method processInitialExtras
+	 * @param {string} $hookType can be "before" or "after"
+	 * @static
+	 * @return {boolean} true if the Q/initialExtras was processed
+	 */
+	static function processInitialExtras($hookType)
+	{
+		if (self::$skipInitialExtras
+		|| Q_Request::isAjax()
+		|| !Q_Request::shouldLoadExtras('initial')) {
+			return false;
+		}
+		Q::event('Q/initialExtras', array(), $hookType);
+		return true;
+	}
 	
 	/**
 	 * Used mostly internally, to determine whether or not we should be firing the
 	 * Q/sessionExtras handlers, to add information specific to the user's session.
-	 * This is false when rendering a static page, or just a regular AJAX call.
+	 * This is false when rendering a static page, or AJAX calls for logged-out users
 	 * @method processSessionExtras
 	 * @param {string} $hookType can be "before" or "after"
 	 * @static
@@ -1960,7 +1979,7 @@ class Q_Response
 			return false;
 		}
 		if (Q_Request::isAjax()
-		and Users::loggedInUser(false, false)) {
+		and Q_Session::isAuthenticated()) {
 			Q_Request::requireValidNonce(true); // SECURITY: prevent CSRF attacks
 		}
 		Q::event('Q/sessionExtras', array(), $hookType);
@@ -2040,7 +2059,7 @@ class Q_Response
 		}
 		if (!Q_Request::isAjax()) {
 			if (!empty($permanently)) {
-				header("HTTP/1.1 301 Moved Permanently");
+				Q_Response::code(301, 'Moved Permanently');
 			} else
 			header("Location: $url");
 		}
@@ -2096,6 +2115,36 @@ class Q_Response
 		}
 		return $latest;
 	}
+
+	/**
+	 * Sets the HTTP response code via header().
+	 * This function exits if it was already called before.
+	 * @method code
+	 * @static
+	 * @param {integer} $code
+	 * @param {string} [$message]
+	 * $param {string} [$httpVersion="1.1"]
+	 */
+	static function code($code, $message = null, $httpVersion = '1.1')
+	{
+		static $called = false;
+		if ($called) {
+			return;
+		}
+		$called = true;
+		if (!isset($message)) {
+			$text = Q_Text::get('Q/content');
+			if (!empty($text['request'][$code])) {
+				$message = $text['request']['code'];
+			}
+		}
+		$url = Q_Request::url();
+		$message = Q::interpolate($message, compact('url'));
+		// this automatically sets the status code
+		// without needing to call http_response_code
+		header("HTTP/$httpVersion $code $message");
+	}
+
 
 	/**
 	 * Get the value for a cookie that will be sent to the client,
@@ -2310,7 +2359,7 @@ class Q_Response
 		$code = null;
 		if ($errors = Q_Response::getErrors()) {
 			foreach ($errors as $error) {
-				if ($error->httpResponseCode) {
+				if (!empty($error->httpResponseCode)) {
 					$code = $error->httpResponseCode;
 					http_response_code($code);
 					break;
@@ -2578,6 +2627,7 @@ class Q_Response
 	public static $preload = array();
 
 	static public $skipResponseExtras = false;
+	static public $skipInitialExtras = false;
 	static public $skipSessionExtras = false;
 	
 	static protected $captureScriptDataForSession = false;
