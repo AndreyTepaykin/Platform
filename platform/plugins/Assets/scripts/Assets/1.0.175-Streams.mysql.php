@@ -1,7 +1,8 @@
 <?php
 
-function Assets_1_0_173()
+function Assets_1_0_175()
 {
+    $communityId = Users::communityId();
     $offset = 0;
     $i = 0;
     echo "Creating Assets/category/credits relations for each user".PHP_EOL;
@@ -13,7 +14,7 @@ function Assets_1_0_173()
             break;
         }
         foreach ($users as $user) {
-            $stream = Streams_Stream::fetch($user->id, $user->id, 'Assets/user/credits');
+            $stream = Streams_Stream::fetch($communityId, $communityId, "Assets/credits/" . $user->id);
             if (!$stream) {
                 continue;
             }
@@ -29,4 +30,4 @@ function Assets_1_0_173()
     echo PHP_EOL;
 }
 
-Assets_1_0_173();
+Assets_1_0_175();
