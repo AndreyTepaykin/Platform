@@ -38,22 +38,22 @@ abstract class Streams extends Base_Streams
 	 * @final
 	 */
 	/**
-	 * Can see a promotional clip of content
+	 * Can see Streams/teaser/.. attributes
 	 * @property $READ_LEVEL['teaser']
 	 * @type integer
 	 * @default 15
 	 * @final
 	 */
 	/**
-	 * Can see the stream's content
-	 * @property $READ_LEVEL['content']
+	 * Can see relations to other streams
+	 * @property $READ_LEVEL['relations']
 	 * @type integer
 	 * @default 20
 	 * @final
 	 */
 	/**
-	 * Can see relations to other streams
-	 * @property $READ_LEVEL['relations']
+	 * Can see the stream's content
+	 * @property $READ_LEVEL['content']
 	 * @type integer
 	 * @default 25
 	 * @final
@@ -89,9 +89,9 @@ abstract class Streams extends Base_Streams
 	public static $READ_LEVEL = array(
 		'none' => 0,				// can't see the stream
 		'see' => 10,				// can see icon and title
-		'teaser' => 15,				// can see promotional clip of content
-		'content' => 20,			// can see the stream's content
-		'relations' => 25,			// can see relations to other streams
+		'teaser' => 15,				// can see Streams/teaser/.. attributes
+		'relations' => 20,			// can see relations to other streams
+		'content' => 25,			// can see the stream's content
 		'participants' => 30,		// can see participants in the stream
 		'messages' => 35,			// can play stream in a player
 		'receipts' => 40,			// can see other users' play receipts

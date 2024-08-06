@@ -2085,7 +2085,7 @@ class Streams_Stream extends Base_Streams_Stream
 				$canSeeFields = array_merge($canSeeFields, 
 					Q::ifset($configPermissions, $p, 'fields', array())
 				);
-				$canSeeAttributes = array_merge($canSeeFields, 
+				$canSeeAttributes = array_merge($canSeeAttributes, 
 					Q::ifset($configPermissions, $p, 'attributes', array())
 				);
 			}
@@ -2109,6 +2109,13 @@ class Streams_Stream extends Base_Streams_Stream
 		if (!$readLevelAtLeastContent) {
 			$attributes = $this->getAllAttributes();
 			$result['attributes'] = Q::json_encode(Q::take($attributes, $canSeeAttributes));
+			if ($this->testReadLevel('teaser')) {
+				foreach ($attributes as $k => $v) {
+					if (Q::startsWith($k, 'Streams/teaser/')) {
+						$result['attributes'][$k] = $v;
+					}
+				}
+			}
 		}
 		$result['access'] = array(
 			'readLevel' => $this->getReadLevel($options),
@@ -2132,6 +2139,10 @@ class Streams_Stream extends Base_Streams_Stream
 		if ($relatedFromTotals = $this->get('relatedFromTotals')) {
 			$result['relatedFromTotals'] = $relatedFromTotals;
 		}
+		$result = Q::event('Streams/Stream/exportArray', array(
+			'stream' => $this,
+			'classes' => $classes
+		), 'after', false, $result);
 		return $result;
 	}
 
